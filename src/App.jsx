@@ -604,29 +604,102 @@ const RESPONSE_TYPES = [
   ['diagram', 'Diagram', icons.image, false],
 ]
 
-function QuestionEditor({ onPreview, onPublish }) {
+const firstWords = (text, n = 4) => {
+  const t = (text || '').trim()
+  if (!t) return 'Untitled'
+  const words = t.replace(/[?.!,]$/, '').split(/\s+/).slice(0, n).join(' ')
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+function QuestionEditor({ onPreview }) {
+  // Committed questions live in the left rail; the draft is the one being built.
+  const [committed, setCommitted] = useState([
+    { id: 1, text: 'Define an acid according to the Arrhenius theory.', type: 'text' },
+  ])
+  const [questionText, setQuestionText] = useState(
+    'Which of the following salts is insoluble in water?'
+  )
   const [responseType, setResponseType] = useState('mc')
   const [shuffle, setShuffle] = useState(false)
   const [compulsory, setCompulsory] = useState(false)
+  const [marks, setMarks] = useState(5)
+  const [markingGuide, setMarkingGuide] = useState('')
   const [options, setOptions] = useState([
-    { id: 1, text: 'Sodium chloride', correct: false },
-    { id: 2, text: 'Barium sulphate', correct: true },
-    { id: 3, text: 'Potassium trioxonitrate(V)', correct: false },
-    { id: 4, text: 'Ammonium chloride', correct: false },
+    { id: 11, text: 'Sodium chloride', correct: false },
+    { id: 12, text: 'Barium sulphate', correct: true },
+    { id: 13, text: 'Potassium trioxonitrate(V)', correct: false },
+    { id: 14, text: 'Ammonium chloride', correct: false },
   ])
+
+  const nextId = React.useRef(100)
+  const newId = () => nextId.current++
+  const questionRef = React.useRef(null)
+  const optionRefs = React.useRef({})
+  const [focusOpt, setFocusOpt] = useState(null)
+
+  React.useEffect(() => {
+    if (focusOpt != null && optionRefs.current[focusOpt]) {
+      optionRefs.current[focusOpt].focus()
+      setFocusOpt(null)
+    }
+  }, [focusOpt, options])
+
+  // Live list = committed questions + the in-progress draft (always last, active).
+  const liveList = [
+    ...committed.map((q, i) => ({ ...q, qno: i + 1, active: false })),
+    { id: 'draft', text: questionText, qno: committed.length + 1, active: true },
+  ]
 
   const setCorrect = (id) =>
     setOptions((o) => o.map((opt) => ({ ...opt, correct: opt.id === id })))
   const removeOption = (id) => setOptions((o) => o.filter((opt) => opt.id !== id))
-  const addOption = () =>
-    setOptions((o) => [...o, { id: Date.now(), text: '', correct: false }])
+  const addOption = (afterIdx) => {
+    const id = newId()
+    setOptions((o) => {
+      const copy = [...o]
+      copy.splice(afterIdx == null ? copy.length : afterIdx + 1, 0, {
+        id,
+        text: '',
+        correct: false,
+      })
+      return copy
+    })
+    setFocusOpt(id)
+  }
+  const updateOption = (id, text) =>
+    setOptions((o) => o.map((opt) => (opt.id === id ? { ...opt, text } : opt)))
+
+  // Enter inside the options area adds a new option row (fast entry) — never
+  // advances the question, so question/marking-guide fields keep line breaks.
+  const onOptionKeyDown = (e, idx) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      addOption(idx)
+    }
+  }
+
+  // Commit the current draft to the list and clear the editor for a fresh one.
+  const saveAndAddNext = () => {
+    setCommitted((c) => [...c, { id: newId(), text: questionText, type: responseType }])
+    setQuestionText('')
+    setResponseType('mc')
+    setOptions([
+      { id: newId(), text: '', correct: false },
+      { id: newId(), text: '', correct: false },
+    ])
+    setMarkingGuide('')
+    setShuffle(false)
+    setCompulsory(false)
+    setMarks(5)
+    setTimeout(() => questionRef.current?.focus(), 0)
+  }
 
   return (
     <div className="min-h-screen flex">
       <IconRail active="exams" />
 
       <div className="flex-1 flex flex-col">
-        {/* Top bar */}
+        {/* Top bar — Preview is the only forward action; no Publish here. */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 bg-white">
           <nav className="flex items-center gap-2 text-sm text-neutral-400">
             <span className="hover:text-neutral-700 cursor-pointer">Home</span>
@@ -648,12 +721,6 @@ function QuestionEditor({ onPreview, onPublish }) {
               className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
             >
               <Icon path={icons.eye} className="w-4 h-4" /> Preview
-            </button>
-            <button
-              onClick={onPublish}
-              className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-black transition"
-            >
-              Publish
             </button>
           </div>
         </div>
@@ -682,39 +749,39 @@ function QuestionEditor({ onPreview, onPublish }) {
               ))}
             </div>
 
-            {/* Questions list */}
+            {/* Questions list — populates live as the teacher builds */}
             <div className="mt-5 flex items-center justify-between">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
                 Questions
               </span>
-              <span className="text-[11px] text-neutral-400">3 total</span>
+              <span className="text-[11px] text-neutral-400">{liveList.length} total</span>
             </div>
             <div className="mt-2 space-y-1.5">
-              {[
-                ['Q1', 'Soluble salts', true],
-                ['Q2', 'Untitled', false],
-                ['Q3', 'Untitled', false],
-              ].map(([q, label, active]) => (
+              {liveList.map((q) => (
                 <div
-                  key={q}
+                  key={q.id}
                   className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm ${
-                    active
-                      ? 'border-neutral-300 bg-neutral-50 text-neutral-900'
+                    q.active
+                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900'
                       : 'border-neutral-200 text-neutral-500'
                   }`}
                 >
                   <GripDots />
-                  <span className="font-medium text-xs text-neutral-400">{q}</span>
-                  <span className="truncate">{label}</span>
+                  <span className="font-medium text-xs text-neutral-400">Q{q.qno}</span>
+                  <span className="truncate">{firstWords(q.text)}</span>
                 </div>
               ))}
             </div>
 
-            <button className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition">
+            {/* Secondary way to start a new question */}
+            <button
+              onClick={saveAndAddNext}
+              className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition"
+            >
               <Icon path={icons.plus} className="w-3.5 h-3.5" /> Add new block
             </button>
 
-            {/* Secondary, exam-level save */}
+            {/* The single save concept: saves the whole exam draft */}
             <button className="mt-auto rounded-lg border border-neutral-300 bg-white py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition">
               Save exam draft
             </button>
@@ -735,10 +802,12 @@ function QuestionEditor({ onPreview, onPublish }) {
                 </button>
               </div>
 
-              {/* Question text */}
+              {/* Question text — Enter inserts a line break (no advancing) */}
               <textarea
+                ref={questionRef}
                 rows={2}
-                defaultValue="Which of the following salts is insoluble in water?"
+                value={questionText}
+                onChange={(e) => setQuestionText(e.target.value)}
                 placeholder="Type your question here…"
                 className="mt-3 w-full resize-none bg-transparent text-xl font-medium text-neutral-900 placeholder:text-neutral-300 outline-none"
               />
@@ -802,14 +871,17 @@ function QuestionEditor({ onPreview, onPublish }) {
                   </div>
 
                   <div className="mt-3 space-y-2">
-                    {options.map((opt) => (
+                    {options.map((opt, idx) => (
                       <div
                         key={opt.id}
                         className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-2.5"
                       >
                         <GripDots />
                         <input
-                          defaultValue={opt.text}
+                          ref={(el) => (optionRefs.current[opt.id] = el)}
+                          value={opt.text}
+                          onChange={(e) => updateOption(opt.id, e.target.value)}
+                          onKeyDown={(e) => onOptionKeyDown(e, idx)}
                           placeholder="Option text"
                           className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 outline-none"
                         />
@@ -840,11 +912,14 @@ function QuestionEditor({ onPreview, onPublish }) {
                   </div>
 
                   <button
-                    onClick={addOption}
+                    onClick={() => addOption()}
                     className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2.5 text-sm font-medium text-neutral-500 hover:bg-neutral-50 transition"
                   >
                     <Icon path={icons.plus} className="w-4 h-4" /> Add option
                   </button>
+                  <p className="mt-2 text-xs text-neutral-400">
+                    Tip: press Enter inside an option to add the next one.
+                  </p>
                 </div>
               )}
 
@@ -854,6 +929,8 @@ function QuestionEditor({ onPreview, onPublish }) {
                   <Field label="Marking guide">
                     <textarea
                       rows={5}
+                      value={markingGuide}
+                      onChange={(e) => setMarkingGuide(e.target.value)}
                       placeholder="e.g. Award 2 marks for stating barium sulphate is insoluble; 2 marks for explaining the formation of an insoluble precipitate; 1 mark for a correct ionic equation."
                       className={inputCls + ' resize-none'}
                     />
@@ -879,13 +956,20 @@ function QuestionEditor({ onPreview, onPublish }) {
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Primary, question-level save */}
-            <div className="border-t border-neutral-200 bg-white px-8 py-4 flex justify-end">
-              <button className="rounded-lg bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-black transition">
-                Save question to draft
-              </button>
+              {/* PRIMARY action — right under the answer area, where focus is */}
+              <div className="mt-8 border-t border-neutral-100 pt-5">
+                <button
+                  onClick={saveAndAddNext}
+                  className="flex items-center gap-2 rounded-lg bg-neutral-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-black transition"
+                >
+                  <Icon path={icons.plus} className="w-4 h-4" /> Save &amp; add next question
+                </button>
+                <p className="mt-2 text-xs text-neutral-400">
+                  Adds this question to the list and opens a fresh one. Questions
+                  auto-save into the list as you build them.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -1228,9 +1312,7 @@ export default function App() {
       {screen === 'exam' && (
         <CreateExam onBack={() => setScreen('dashboard')} onContinue={() => setScreen('editor')} />
       )}
-      {screen === 'editor' && (
-        <QuestionEditor onPreview={() => setScreen('preview')} onPublish={() => setScreen('preview')} />
-      )}
+      {screen === 'editor' && <QuestionEditor onPreview={() => setScreen('preview')} />}
       {screen === 'preview' && (
         <Preview onExit={() => setScreen('editor')} onPublish={() => setScreen('editor')} />
       )}
