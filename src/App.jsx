@@ -48,6 +48,12 @@ const icons = {
   info: <><circle cx="12" cy="12" r="9" /><path d="M12 16v-4M12 8h.01" /></>,
   list: <><path d="M8 6h13M8 12h13M8 18h13" /><path d="M3 6h.01M3 12h.01M3 18h.01" /></>,
   shuffle: <><path d="M16 3h5v5" /><path d="M4 20 21 3" /><path d="M21 16v5h-5" /><path d="m15 15 6 6" /><path d="M4 4l5 5" /></>,
+  file: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /></>,
+  download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="M7 10l5 5 5-5" /><path d="M12 15V3" /></>,
+  x: <path d="M18 6 6 18M6 6l12 12" />,
+  loader: <path d="M21 12a9 9 0 1 1-6.2-8.6" />,
+  alert: <><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></>,
+  cloud: <><path d="M16 16l-4-4-4 4" /><path d="M12 12v9" /><path d="M20.4 17.6A5 5 0 0 0 18 8h-1.3A8 8 0 1 0 4 15.3" /></>,
 }
 
 const GripDots = ({ className = 'w-3.5 h-3.5 text-neutral-400' }) => (
@@ -285,7 +291,7 @@ function Topbar() {
 }
 
 /* ============================================================ DASHBOARD === */
-function Dashboard({ onBeginDrafting }) {
+function Dashboard({ onBeginDrafting, onBulkUpload }) {
   return (
     <div className="min-h-screen flex">
       <Sidebar active="Dashboard" />
@@ -330,7 +336,10 @@ function Dashboard({ onBeginDrafting }) {
                 Import questions from Excel, CSV, or JSON.
               </p>
               <div className="mt-auto pt-5">
-                <button className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition">
+                <button
+                  onClick={onBulkUpload}
+                  className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                >
                   Upload file
                 </button>
               </div>
@@ -1301,6 +1310,537 @@ function StudentView({ toggle }) {
   )
 }
 
+/* ============================================================ BULK IMPORT === */
+const BULK_TOTAL = 125
+
+const SAMPLE_FILES = [
+  { name: 'SS3_Chemistry_Questions.xlsx', fail: false },
+  { name: 'SS3_Chemistry_Questions_draft.xlsx', fail: true },
+]
+
+function BulkBreadcrumb() {
+  return (
+    <nav className="flex items-center gap-2 text-sm text-neutral-400">
+      <span className="hover:text-neutral-700 cursor-pointer">Home</span>
+      <span>›</span>
+      <span className="hover:text-neutral-700 cursor-pointer">Exams</span>
+      <span>›</span>
+      <span className="hover:text-neutral-700 cursor-pointer">{EXAM_NAME}</span>
+      <span>›</span>
+      <span className="text-neutral-700">Bulk import</span>
+    </nav>
+  )
+}
+
+function BulkTopbar() {
+  return (
+    <div className="flex items-center justify-between px-6 py-3.5 border-b border-neutral-200 bg-white/60">
+      <BulkBreadcrumb />
+      <div className="flex items-center gap-3">
+        <div className="relative hidden md:block">
+          <Icon path={icons.search} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+          <input
+            className="w-56 rounded-lg border border-neutral-200 bg-white pl-9 pr-3 py-2 text-sm placeholder:text-neutral-400 outline-none focus:border-neutral-400"
+            placeholder="Search resources…"
+          />
+        </div>
+        <button className="w-9 h-9 rounded-full border border-neutral-200 bg-white flex items-center justify-center text-neutral-500 hover:bg-neutral-50">
+          <Icon path={icons.headset} className="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DownloadTemplates() {
+  const rows = [
+    ['Standardized CSV', icons.file],
+    ['Excel schema (.xlsx)', icons.file],
+    ['JSON structure', icons.file],
+  ]
+  return (
+    <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+        Download templates
+      </p>
+      <div className="mt-3 space-y-1">
+        {rows.map(([label, path]) => (
+          <button
+            key={label}
+            className="w-full flex items-center justify-between rounded-lg px-2 py-2 text-sm text-neutral-700 hover:bg-neutral-50"
+          >
+            <span className="flex items-center gap-2.5">
+              <Icon path={path} className="w-4 h-4 text-neutral-400" />
+              {label}
+            </span>
+            <Icon path={icons.download} className="w-4 h-4 text-neutral-400" />
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function FormattingGuide() {
+  const lines = [
+    'Questions must be in column B',
+    'S/N must be unique integers',
+    'Max 4 answers per multiple choice',
+    "JSON must follow the nested 'quiz' root",
+  ]
+  return (
+    <div className="rounded-2xl bg-neutral-900 p-5 text-neutral-300">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+        Formatting guide
+      </p>
+      <ul className="mt-3 space-y-2 text-sm">
+        {lines.map((l) => (
+          <li key={l}>{l}</li>
+        ))}
+      </ul>
+      <button className="mt-4 w-full rounded-lg border border-neutral-700 py-2 text-xs font-medium text-neutral-200 hover:bg-neutral-800 transition">
+        Open full documentation
+      </button>
+    </div>
+  )
+}
+
+function PreviewPlaceholders({ loading }) {
+  return (
+    <div className="space-y-2.5">
+      {Array.from({ length: 6 }).map((_, r) => (
+        <div key={r} className="grid grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, c) => (
+            <div
+              key={c}
+              className={`h-4 rounded bg-neutral-100 ${loading ? 'animate-pulse' : ''}`}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ---- State 1: Upload ---- */
+function BulkUploadState({ file, onSelect, onImport, onCancel }) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-8">
+          <div className="rounded-xl border-2 border-dashed border-neutral-200 bg-neutral-50/40 px-6 py-12 text-center">
+            <div className="mx-auto w-12 h-12 rounded-xl bg-white border border-neutral-200 flex items-center justify-center text-neutral-400">
+              <Icon path={icons.cloud} className="w-6 h-6" />
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-neutral-900">
+              Upload your questions
+            </h2>
+            <p className="mt-1 text-sm text-neutral-500">
+              Drag and drop, or browse your files.
+            </p>
+            <p className="mt-0.5 text-xs text-neutral-400">Supported: CSV, XLSX, JSON</p>
+
+            {file ? (
+              <div className="mt-5 inline-flex items-center gap-2.5 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm">
+                <Icon path={icons.file} className="w-4 h-4 text-neutral-400" />
+                <span className="text-neutral-800">{file.name}</span>
+                <button onClick={() => onSelect(null)} className="text-neutral-300 hover:text-red-500">
+                  <Icon path={icons.x} className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="relative mt-5 inline-block">
+                <button
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-black transition"
+                >
+                  Select file
+                </button>
+                {menuOpen && (
+                  <div className="absolute left-1/2 top-full z-10 mt-2 w-72 -translate-x-1/2 rounded-xl border border-neutral-200 bg-white p-1 shadow-lg">
+                    {SAMPLE_FILES.map((f) => (
+                      <button
+                        key={f.name}
+                        onClick={() => {
+                          onSelect(f)
+                          setMenuOpen(false)
+                        }}
+                        className="w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                      >
+                        <Icon path={icons.file} className="w-4 h-4 text-neutral-400" />
+                        <span className="truncate">{f.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Data preview */}
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+              Data preview
+            </p>
+            <span className="text-[11px] uppercase tracking-wide text-neutral-400">
+              Awaiting file upload…
+            </span>
+          </div>
+          <div className="mt-4">
+            <PreviewPlaceholders loading={false} />
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onImport}
+            disabled={!file}
+            className="flex items-center gap-2 rounded-lg bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            <Icon path={icons.upload} className="w-4 h-4" /> Import questions
+          </button>
+          <button
+            onClick={onCancel}
+            className="rounded-lg border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <DownloadTemplates />
+        <FormattingGuide />
+      </div>
+    </div>
+  )
+}
+
+/* ---- State 2: Processing ---- */
+function BulkProcessingState({ file, progress, onCancel }) {
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-10 text-center">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-neutral-50 border border-neutral-200 flex items-center justify-center text-neutral-500">
+            <Icon path={icons.loader} className="w-6 h-6 animate-spin" />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-neutral-900">Importing your questions…</h2>
+          <p className="mt-1 text-sm text-neutral-500">{file?.name}</p>
+
+          <div className="mx-auto mt-5 max-w-sm">
+            <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-neutral-900 transition-all"
+                style={{ width: `${(progress / BULK_TOTAL) * 100}%` }}
+              />
+            </div>
+            <p className="mt-2 text-sm font-medium text-neutral-700">
+              {progress} / {BULK_TOTAL} questions
+            </p>
+          </div>
+
+          <button
+            onClick={onCancel}
+            className="mt-6 rounded-lg border border-neutral-300 bg-white px-5 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+          >
+            Cancel import
+          </button>
+        </div>
+
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Data preview</p>
+          <div className="mt-4">
+            <PreviewPlaceholders loading />
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <DownloadTemplates />
+        <FormattingGuide />
+      </div>
+    </div>
+  )
+}
+
+/* ---- State 3: Success ---- */
+const IMPORTED_SAMPLE = {
+  text: 'Which of the following is the major product formed when ethanol is dehydrated with concentrated tetraoxosulphate(VI) acid at 170 °C?',
+  points: 5,
+  options: [
+    { id: 'a', text: 'Ethene', correct: true },
+    { id: 'b', text: 'Ethanoic acid', correct: false },
+    { id: 'c', text: 'Ethoxyethane', correct: false },
+    { id: 'd', text: 'Ethyl ethanoate', correct: false },
+  ],
+}
+
+function BulkSuccessState({ onAddToExam, onSaveToBank, onUploadMore }) {
+  return (
+    <div className="space-y-6">
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+            <Icon path={icons.check} className="w-6 h-6" stroke={2.5} />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-neutral-900">Import successful</h2>
+          <p className="mt-1 text-sm text-neutral-500">Your questions are ready.</p>
+          <div className="mt-5 flex items-center justify-center gap-3">
+            <button
+              onClick={onAddToExam}
+              className="rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-black transition"
+            >
+              Add to this exam
+            </button>
+            <button
+              onClick={onSaveToBank}
+              className="rounded-lg border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+            >
+              Save to question bank
+            </button>
+          </div>
+        </div>
+
+        {/* Upload more */}
+        <button
+          onClick={onUploadMore}
+          className="rounded-2xl border border-dashed border-neutral-300 bg-neutral-50/40 p-8 text-center hover:bg-neutral-50 transition"
+        >
+          <div className="mx-auto w-11 h-11 rounded-xl bg-white border border-neutral-200 flex items-center justify-center text-neutral-400">
+            <Icon path={icons.file} className="w-5 h-5" />
+          </div>
+          <p className="mt-3 text-sm font-semibold text-neutral-700">Upload more</p>
+          <p className="mt-1 text-xs text-neutral-400">
+            Append more questions to this session.
+          </p>
+          <p className="mt-0.5 text-xs text-neutral-400">Supported: CSV, XLSX, JSON</p>
+        </button>
+      </div>
+
+      {/* Imported questions preview */}
+      <div className="rounded-2xl border border-neutral-200 bg-white p-6">
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-neutral-900">
+            Here are your {BULK_TOTAL} questions
+          </p>
+          <div className="flex items-center gap-1 text-neutral-400">
+            <button className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center">
+              <Icon path={icons.shuffle} className="w-4 h-4" />
+            </button>
+            <button className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center">
+              <Icon path={icons.trash} className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 max-h-80 overflow-y-auto pr-1 space-y-3">
+          <div className="rounded-xl border border-neutral-200 p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] uppercase tracking-wide text-neutral-400">
+                Question 01 · MCQ
+              </span>
+              <span className="text-xs font-medium text-neutral-500">{IMPORTED_SAMPLE.points} points</span>
+            </div>
+            <p className="mt-3 text-base text-neutral-900">{IMPORTED_SAMPLE.text}</p>
+            <div className="mt-4 space-y-2">
+              {IMPORTED_SAMPLE.options.map((o) => (
+                <div
+                  key={o.id}
+                  className={`flex items-center gap-3 rounded-lg border px-4 py-2.5 text-sm ${
+                    o.correct ? 'border-emerald-300 bg-emerald-50 text-neutral-900' : 'border-neutral-200 text-neutral-700'
+                  }`}
+                >
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${
+                    o.correct ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-neutral-300'
+                  }`}>
+                    {o.correct && <Icon path={icons.check} className="w-2.5 h-2.5" stroke={3} />}
+                  </span>
+                  {o.text}
+                  {o.correct && (
+                    <span className="ml-auto text-[11px] font-medium uppercase tracking-wide text-emerald-600">
+                      Correct answer
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* trailing rows to suggest a long, scrollable list */}
+          {['Question 02 · MCQ', 'Question 03 · Text', 'Question 04 · MCQ'].map((q) => (
+            <div key={q} className="rounded-xl border border-neutral-200 p-5">
+              <span className="text-[11px] uppercase tracking-wide text-neutral-400">{q}</span>
+              <div className="mt-3 h-3 w-2/3 rounded bg-neutral-100" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- State 4: Failed ---- */
+const BULK_ERRORS = [
+  ['Row 4: Missing correct answer mapping', "The field 'correct_ans' cannot be null."],
+  ['Row 12: Question exceeds 500 character limit', 'Character count: 742 / 500.'],
+  ['Row 25: Invalid format in image column', 'Supported: jpg, png, webp. Found: tiff.'],
+]
+const BULK_ROWS = [
+  [1, 'MISSING_ID', 'What is the basicity of trioxonitrate(V) acid?', '—', 'CRITICAL'],
+  [4, 'Q_342', 'Identify the components of…', '—', 'CRITICAL'],
+  [12, 'Q_981', '[Content exceeds 500 character limit…]', 'Option B', 'WARNING'],
+  [25, 'Q_112', 'Select the correct apparatus…', 'Option A', 'CRITICAL'],
+]
+
+function BulkFailedState({ onReupload }) {
+  return (
+    <div className="grid lg:grid-cols-3 gap-6">
+      <div className="lg:col-span-2 space-y-6">
+        <div className="rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+          <div className="mx-auto w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-500">
+            <Icon path={icons.x} className="w-6 h-6" stroke={2.5} />
+          </div>
+          <h2 className="mt-4 text-lg font-semibold text-neutral-900">Import failed</h2>
+          <p className="mt-1 text-sm text-neutral-500">14 errors found.</p>
+          <button
+            onClick={onReupload}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-black transition"
+          >
+            <Icon path={icons.upload} className="w-4 h-4" /> Re-upload corrected file
+          </button>
+        </div>
+
+        {/* Data preview with statuses */}
+        <div className="rounded-2xl border border-neutral-200 bg-white p-6">
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Data preview</p>
+            <span className="text-[11px] uppercase tracking-wide text-red-500">Validation complete · errors found</span>
+          </div>
+          <table className="mt-4 w-full text-sm">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wide text-neutral-400">
+                <th className="pb-2 font-medium">S/N</th>
+                <th className="pb-2 font-medium">Question ID</th>
+                <th className="pb-2 font-medium">Question text</th>
+                <th className="pb-2 font-medium">Correct answer</th>
+                <th className="pb-2 font-medium text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-neutral-100">
+              {BULK_ROWS.map(([sn, id, text, ans, status]) => (
+                <tr key={sn} className="text-neutral-700">
+                  <td className="py-2.5">{sn}</td>
+                  <td className="py-2.5">
+                    <span className={`rounded px-1.5 py-0.5 text-xs ${
+                      id === 'MISSING_ID' ? 'bg-red-50 text-red-600' : 'text-neutral-500'
+                    }`}>
+                      {id}
+                    </span>
+                  </td>
+                  <td className="py-2.5 max-w-xs truncate text-neutral-600">{text}</td>
+                  <td className="py-2.5">
+                    <span className={ans === '—' ? 'rounded bg-red-50 px-1.5 py-0.5 text-red-600' : ''}>{ans}</span>
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <span className={`text-[11px] font-semibold uppercase tracking-wide ${
+                      status === 'CRITICAL' ? 'text-red-500' : 'text-amber-500'
+                    }`}>
+                      {status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        {/* Error report */}
+        <div className="rounded-2xl border border-neutral-200 bg-white p-5">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-red-500">
+            <Icon path={icons.alert} className="w-3.5 h-3.5" /> Error report
+          </p>
+          <div className="mt-3 space-y-3">
+            {BULK_ERRORS.map(([title, detail]) => (
+              <div key={title}>
+                <p className="text-sm font-medium text-neutral-800">{title}</p>
+                <p className="text-xs text-neutral-400">{detail}</p>
+              </div>
+            ))}
+          </div>
+          <button className="mt-4 w-full flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition">
+            <Icon path={icons.download} className="w-3.5 h-3.5" /> Download error log
+          </button>
+        </div>
+
+        <DownloadTemplates />
+        <FormattingGuide />
+      </div>
+    </div>
+  )
+}
+
+function BulkImport({ onExit, onAddToExam }) {
+  const [step, setStep] = useState('upload')
+  const [file, setFile] = useState(null)
+  const [progress, setProgress] = useState(0)
+
+  React.useEffect(() => {
+    if (step !== 'processing') return
+    setProgress(28)
+    const id = setInterval(() => {
+      setProgress((p) => {
+        if (p >= BULK_TOTAL) {
+          clearInterval(id)
+          setStep(file?.fail ? 'failed' : 'success')
+          return BULK_TOTAL
+        }
+        return Math.min(BULK_TOTAL, p + 7)
+      })
+    }, 110)
+    return () => clearInterval(id)
+  }, [step, file])
+
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Exams" />
+      <main className="flex-1 flex flex-col">
+        <BulkTopbar />
+        <div className="flex-1 px-8 py-8 max-w-6xl mx-auto w-full">
+          {step === 'upload' && (
+            <BulkUploadState
+              file={file}
+              onSelect={setFile}
+              onImport={() => setStep('processing')}
+              onCancel={onExit}
+            />
+          )}
+          {step === 'processing' && (
+            <BulkProcessingState file={file} progress={progress} onCancel={() => setStep('upload')} />
+          )}
+          {step === 'success' && (
+            <BulkSuccessState
+              onAddToExam={onAddToExam}
+              onSaveToBank={onAddToExam}
+              onUploadMore={() => {
+                setFile(null)
+                setStep('upload')
+              }}
+            />
+          )}
+          {step === 'failed' && <BulkFailedState onReupload={() => { setFile(null); setStep('upload') }} />}
+        </div>
+      </main>
+    </div>
+  )
+}
+
 /* ================================================================== APP === */
 export default function App() {
   const [screen, setScreen] = useState('signup')
@@ -1308,7 +1848,15 @@ export default function App() {
   return (
     <div className="font-sans text-neutral-900">
       {screen === 'signup' && <SignUp onCreate={() => setScreen('dashboard')} />}
-      {screen === 'dashboard' && <Dashboard onBeginDrafting={() => setScreen('exam')} />}
+      {screen === 'dashboard' && (
+        <Dashboard
+          onBeginDrafting={() => setScreen('exam')}
+          onBulkUpload={() => setScreen('bulk')}
+        />
+      )}
+      {screen === 'bulk' && (
+        <BulkImport onExit={() => setScreen('dashboard')} onAddToExam={() => setScreen('editor')} />
+      )}
       {screen === 'exam' && (
         <CreateExam onBack={() => setScreen('dashboard')} onContinue={() => setScreen('editor')} />
       )}
