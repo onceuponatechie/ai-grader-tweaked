@@ -74,6 +74,32 @@ const MoreDots = ({ className = 'w-4 h-4 text-neutral-400' }) => (
 
 const EXAM_NAME = 'SS3 Chemistry Mid-Term'
 
+/* Shared flow state: in-app navigation + the publish timer/step counter. */
+const FlowCtx = React.createContext(null)
+const useFlow = () => React.useContext(FlowCtx)
+
+const NAV_TARGET = {
+  Dashboard: 'dashboard',
+  Exams: 'exams',
+  Questions: 'banks',
+  Students: 'invite',
+  Results: 'results',
+}
+// reverse map: screen -> sidebar label to highlight
+const SCREEN_LABEL = {
+  dashboard: 'Dashboard',
+  exams: 'Exams',
+  exam: 'Exams',
+  editor: 'Exams',
+  preview: 'Exams',
+  published: 'Exams',
+  banks: 'Questions',
+  bankView: 'Questions',
+  bulk: 'Exams',
+  invite: 'Students',
+  results: 'Results',
+}
+
 const GoogleMark = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24">
     <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1Z" />
@@ -216,6 +242,7 @@ function SignUp({ onCreate }) {
 
 /* ============================================================ APP SHELL === */
 function Sidebar({ active = 'Dashboard' }) {
+  const flow = useFlow()
   const nav = [
     ['Dashboard', icons.dashboard],
     ['Exams', icons.exams],
@@ -236,6 +263,7 @@ function Sidebar({ active = 'Dashboard' }) {
         {nav.map(([label, path]) => (
           <button
             key={label}
+            onClick={() => flow?.go(NAV_TARGET[label])}
             className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
               active === label
                 ? 'bg-neutral-100 text-neutral-900 font-medium'
@@ -379,42 +407,6 @@ function Dashboard({ onBeginDrafting, onBulkUpload, onQuestionBanks }) {
 }
 
 /* =========================================================== CREATE EXAM === */
-function GettingStarted() {
-  const items = [
-    ['Create your first exam', true],
-    ['Add questions', false],
-    ['Invite students', false],
-    ['Publish exam', false],
-  ]
-  return (
-    <div className="w-72 rounded-2xl border border-neutral-200 bg-white shadow-lg shadow-neutral-200/50 p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-neutral-900">Getting started</p>
-        <span className="text-xs text-neutral-400">25% complete</span>
-      </div>
-      <div className="mt-2 h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
-        <div className="h-full w-1/4 rounded-full bg-neutral-900" />
-      </div>
-      <ul className="mt-4 space-y-2.5">
-        {items.map(([label, done]) => (
-          <li key={label} className="flex items-center gap-2.5 text-sm">
-            <span
-              className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                done ? 'bg-neutral-900 border-neutral-900 text-white' : 'border-neutral-300'
-              }`}
-            >
-              {done && <Icon path={icons.check} className="w-2.5 h-2.5" stroke={3} />}
-            </span>
-            <span className={done ? 'text-neutral-400 line-through' : 'text-neutral-700'}>
-              {label}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
 function DurationButtons() {
   const [val, setVal] = useState(60) // 60 min selected by default
   return (
@@ -434,9 +426,14 @@ function DurationButtons() {
   )
 }
 
-function CreateExam({ onBack, onContinue }) {
+function CreateExam({ onContinue }) {
+  const flow = useFlow()
   const [title, setTitle] = useState('')
   const [optionalOpen, setOptionalOpen] = useState(false) // collapsed by default
+
+  React.useEffect(() => {
+    flow?.setStep('Step 1 of 5: Exam setup')
+  }, [])
 
   return (
     <div className="min-h-screen flex">
@@ -448,9 +445,9 @@ function CreateExam({ onBack, onContinue }) {
           <div className="px-8 py-8 max-w-3xl mx-auto w-full">
             {/* Breadcrumb */}
             <nav className="flex items-center gap-2 text-sm text-neutral-400">
-              <button onClick={onBack} className="hover:text-neutral-700">Home</button>
+              <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
               <span>›</span>
-              <button onClick={onBack} className="hover:text-neutral-700">Exams</button>
+              <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
               <span>›</span>
               <span className="text-neutral-700">New Exam</span>
             </nav>
@@ -559,11 +556,6 @@ function CreateExam({ onBack, onContinue }) {
               You just need a title, course, and duration to continue.
             </p>
           </div>
-
-          {/* Floating Getting Started card */}
-          <div className="hidden xl:block absolute right-8 top-8">
-            <GettingStarted />
-          </div>
         </div>
       </main>
     </div>
@@ -572,20 +564,22 @@ function CreateExam({ onBack, onContinue }) {
 
 /* ============================================================= ICON RAIL === */
 function IconRail({ active = 'exams' }) {
+  const flow = useFlow()
   const items = [
-    ['dashboard', icons.dashboard],
-    ['exams', icons.exams],
-    ['questions', icons.questions],
-    ['students', icons.students],
-    ['results', icons.results],
+    ['dashboard', icons.dashboard, 'dashboard'],
+    ['exams', icons.exams, 'exams'],
+    ['questions', icons.questions, 'banks'],
+    ['students', icons.students, 'invite'],
+    ['results', icons.results, 'results'],
   ]
   return (
     <aside className="w-14 shrink-0 bg-white border-r border-neutral-200 flex flex-col items-center py-4">
       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-neutral-700 to-black mb-6" />
       <nav className="flex-1 flex flex-col items-center gap-1.5">
-        {items.map(([key, path]) => (
+        {items.map(([key, path, target]) => (
           <button
             key={key}
+            onClick={() => flow?.go(target)}
             className={`w-9 h-9 rounded-lg flex items-center justify-center transition ${
               active === key
                 ? 'bg-neutral-100 text-neutral-900'
@@ -626,13 +620,10 @@ const firstWords = (text, n = 4) => {
 }
 
 function QuestionEditor({ onPreview }) {
+  const flow = useFlow()
   // Committed questions live in the left rail; the draft is the one being built.
-  const [committed, setCommitted] = useState([
-    { id: 1, text: 'Define an acid according to the Arrhenius theory.', type: 'text' },
-  ])
-  const [questionText, setQuestionText] = useState(
-    'Which of the following salts is insoluble in water?'
-  )
+  const [committed, setCommitted] = useState([])
+  const [questionText, setQuestionText] = useState('')
   const [responseType, setResponseType] = useState('mc')
   const [shuffle, setShuffle] = useState(false)
   const [compulsory, setCompulsory] = useState(false)
@@ -640,10 +631,8 @@ function QuestionEditor({ onPreview }) {
   const [showBankModal, setShowBankModal] = useState(false)
   const [markingGuide, setMarkingGuide] = useState('')
   const [options, setOptions] = useState([
-    { id: 11, text: 'Sodium chloride', correct: false },
-    { id: 12, text: 'Barium sulphate', correct: true },
-    { id: 13, text: 'Potassium trioxonitrate(V)', correct: false },
-    { id: 14, text: 'Ammonium chloride', correct: false },
+    { id: 11, text: '', correct: false },
+    { id: 12, text: '', correct: false },
   ])
 
   const nextId = React.useRef(100)
@@ -652,12 +641,25 @@ function QuestionEditor({ onPreview }) {
   const optionRefs = React.useRef({})
   const [focusOpt, setFocusOpt] = useState(null)
 
+  // The timer starts when the question editor opens (start of question 1).
+  React.useEffect(() => {
+    flow?.startTimer()
+    flow?.setStep('Step 2 of 5: Adding questions')
+  }, [])
+
   React.useEffect(() => {
     if (focusOpt != null && optionRefs.current[focusOpt]) {
       optionRefs.current[focusOpt].focus()
       setFocusOpt(null)
     }
   }, [focusOpt, options])
+
+  // Count real questions (committed with text + the draft if it has text).
+  const committedReal = committed.filter((q) => q.text.trim()).length
+  const liveCount = committedReal + (questionText.trim() ? 1 : 0)
+  React.useEffect(() => {
+    flow?.setQuestionCount(liveCount)
+  }, [liveCount])
 
   // Live list = committed questions + the in-progress draft (always last, active).
   const liveList = [
@@ -717,9 +719,9 @@ function QuestionEditor({ onPreview }) {
         {/* Top bar — Preview is the only forward action; no Publish here. */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 bg-white">
           <nav className="flex items-center gap-2 text-sm text-neutral-400">
-            <span className="hover:text-neutral-700 cursor-pointer">Home</span>
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
             <span>›</span>
-            <span className="hover:text-neutral-700 cursor-pointer">Exams</span>
+            <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
             <span>›</span>
             <span className="text-neutral-700">{EXAM_NAME}</span>
           </nav>
@@ -1053,15 +1055,27 @@ const PREVIEW_Q = {
   ],
 }
 
-function Preview({ onExit, onPublish }) {
+function Preview({ onExit, onPublished }) {
+  const flow = useFlow()
   const [view, setView] = useState('teacher')
+  const [confirm, setConfirm] = useState(false)
+
+  React.useEffect(() => {
+    flow?.setStep('Step 3 of 5: Preview')
+  }, [])
+
+  const doPublish = () => {
+    flow?.freezeTimer()
+    flow?.setStep('Step 4 of 5: Published')
+    onPublished()
+  }
 
   const PreviewTopbar = (
     <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 bg-white">
       <nav className="flex items-center gap-2 text-sm text-neutral-400">
-        <span className="hover:text-neutral-700 cursor-pointer">Home</span>
+        <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
         <span>›</span>
-        <span className="hover:text-neutral-700 cursor-pointer">Exams</span>
+        <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
         <span>›</span>
         <span className="text-neutral-700">
           {view === 'teacher' ? "Teacher's View" : 'Student Preview'}
@@ -1082,7 +1096,7 @@ function Preview({ onExit, onPublish }) {
           <Icon path={icons.eye} className="w-4 h-4" /> Exit preview
         </button>
         <button
-          onClick={onPublish}
+          onClick={() => setConfirm(true)}
           className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-black transition"
         >
           Publish exam
@@ -1123,6 +1137,31 @@ function Preview({ onExit, onPublish }) {
           )}
         </div>
       </div>
+
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6">
+            <h2 className="text-base font-semibold text-neutral-900">Publish this exam?</h2>
+            <p className="mt-1.5 text-sm text-neutral-500">
+              Students will be able to join.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirm(false)}
+                className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={doPublish}
+                className="rounded-lg bg-neutral-900 px-5 py-2 text-sm font-semibold text-white hover:bg-black transition"
+              >
+                Publish exam
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2217,47 +2256,419 @@ function BankQuestions({ bank, onBack, onAddToExam }) {
   )
 }
 
+/* ============================================================ TIMER WIDGET === */
+function TimerWidget({ elapsedMs, step, frozen, questionCount }) {
+  const fmt = (ms) => {
+    const s = Math.floor(ms / 1000)
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  }
+  return (
+    <div className="fixed bottom-5 right-5 z-40 w-64 rounded-xl border border-neutral-200 bg-white shadow-lg shadow-neutral-300/30 p-4">
+      {frozen ? (
+        <>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">
+            <Icon path={icons.check} className="w-3.5 h-3.5" stroke={3} /> Published
+          </p>
+          <p className="mt-1.5 text-sm text-neutral-700">
+            Published in <span className="font-semibold text-neutral-900">{fmt(elapsedMs)}</span>
+          </p>
+          <p className="text-xs text-neutral-400">{questionCount} questions · 5 steps</p>
+        </>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
+              Creation timer
+            </span>
+            <span className="text-lg font-semibold tabular-nums text-neutral-900">{fmt(elapsedMs)}</span>
+          </div>
+          <p className="mt-1 text-xs text-neutral-500">{step}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ============================================================== MY EXAMS === */
+const MY_EXAMS = [
+  { id: 1, name: 'SS3 Chemistry Mid-Term', course: 'Chemistry · SS3', questions: 12, status: 'Draft' },
+  { id: 2, name: 'ECO 201 Test', course: 'Economics · 200 level', questions: 20, status: 'Published' },
+  { id: 3, name: 'JSS Mathematics Quiz', course: 'Mathematics · JSS2', questions: 15, status: 'Draft' },
+]
+
+function MyExams({ onCreate }) {
+  const flow = useFlow()
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Exams" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <span className="text-neutral-700">Exams</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 px-8 py-8 max-w-5xl mx-auto w-full">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">My Exams</h1>
+              <p className="mt-1 text-sm text-neutral-500">Create, draft and publish your exams.</p>
+            </div>
+            <button
+              onClick={onCreate}
+              className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition"
+            >
+              Create exam
+            </button>
+          </div>
+
+          <div className="mt-7 space-y-2.5">
+            {MY_EXAMS.map((e) => (
+              <div
+                key={e.id}
+                className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-white px-5 py-4"
+              >
+                <span className="w-10 h-10 rounded-xl bg-neutral-100 text-neutral-500 flex items-center justify-center">
+                  <Icon path={icons.exams} className="w-5 h-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-neutral-900">{e.name}</p>
+                  <p className="text-xs text-neutral-400">{e.course} · {e.questions} questions</p>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                    e.status === 'Published'
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : 'bg-neutral-100 text-neutral-500'
+                  }`}
+                >
+                  {e.status}
+                </span>
+                <button
+                  onClick={() => flow?.go('editor')}
+                  className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                >
+                  Open
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+/* ============================================================== PUBLISHED === */
+function Published({ elapsedMs, questionCount, onInvite }) {
+  const flow = useFlow()
+  const fmt = (ms) => {
+    const s = Math.floor(ms / 1000)
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  }
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Exams" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
+            <span>›</span>
+            <span className="text-neutral-700">{EXAM_NAME}</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 flex items-center justify-center px-8 py-10">
+          <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+              <Icon path={icons.check} className="w-7 h-7" stroke={2.5} />
+            </div>
+            <h1 className="mt-5 text-xl font-semibold text-neutral-900">Exam published</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              {EXAM_NAME} is live. Students can now join.
+            </p>
+
+            <div className="mt-5 rounded-xl bg-neutral-50 border border-neutral-200 px-4 py-3 text-sm text-neutral-600">
+              Published in <span className="font-semibold text-neutral-900">{fmt(elapsedMs)}</span>
+              {' · '}{questionCount} questions · 5 steps
+            </div>
+
+            <button
+              onClick={onInvite}
+              className="mt-6 w-full rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-black transition"
+            >
+              Invite students
+            </button>
+            <button
+              onClick={() => flow?.go('exams')}
+              className="mt-2 w-full rounded-lg border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+            >
+              Back to my exams
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+/* =========================================================== INVITE STUDENTS === */
+const PENDING_INVITES = [
+  ['Chiamaka Okafor', 'chiamaka.okafor@student.edu', 'Oct 24, 2023'],
+  ['Tunde Adeyemi', 'tunde.adeyemi@student.edu', 'Oct 24, 2023'],
+  ['Ngozi Eze', 'ngozi.eze@student.edu', 'Oct 23, 2023'],
+]
+
+function InviteStudents() {
+  const flow = useFlow()
+  const [copied, setCopied] = useState(false)
+  const link = 'proctex.app/join/ss3-chem-7k9x2'
+
+  React.useEffect(() => {
+    flow?.setStep('Step 5 of 5: Invite students')
+  }, [])
+
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Students" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
+            <span>›</span>
+            <span className="text-neutral-700">Invite students</span>
+          </nav>
+        </CrumbTopbar>
+
+        <div className="flex-1 px-8 py-8 max-w-4xl mx-auto w-full">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Invite students</h1>
+          <p className="mt-1 text-sm text-neutral-500">{EXAM_NAME}</p>
+
+          {/* HERO — magic link */}
+          <div className="mt-6 rounded-2xl border border-neutral-900/10 bg-white p-6 shadow-sm ring-1 ring-neutral-900/5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+              Share link
+            </p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex-1 flex items-center rounded-lg border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm text-neutral-700">
+                {link}
+              </div>
+              <button
+                onClick={() => {
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1500)
+                }}
+                className="shrink-0 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-black transition"
+              >
+                {copied ? 'Copied!' : 'Copy link'}
+              </button>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">Link expiry</span>
+              <select className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-neutral-400" defaultValue="24">
+                <option value="24">24 hours</option>
+                <option value="72">72 hours</option>
+                <option value="168">7 days</option>
+                <option value="0">No expiry</option>
+              </select>
+            </div>
+            <p className="mt-3 text-sm text-neutral-500">
+              Share this link with your students. They join by clicking it — no account
+              needed.
+            </p>
+          </div>
+
+          {/* SECONDARY — email */}
+          <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-6">
+            <p className="text-sm font-semibold text-neutral-800">Or send the link by email</p>
+            <textarea
+              rows={3}
+              placeholder="Enter student emails, comma-separated or one per line…"
+              className={inputCls + ' mt-3 resize-none'}
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <button className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-neutral-900">
+                <Icon path={icons.upload} className="w-4 h-4" /> Bulk upload CSV
+              </button>
+              <button className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition">
+                Send invitations
+              </button>
+            </div>
+          </div>
+
+          {/* Pending invitations */}
+          <div className="mt-7 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-neutral-900">Pending invitations</h2>
+            <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-500">
+              {PENDING_INVITES.length} pending
+            </span>
+          </div>
+          <div className="mt-3 rounded-2xl border border-neutral-200 bg-white overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-neutral-400 border-b border-neutral-100">
+                  <th className="px-5 py-3 font-medium">Student name / email</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 font-medium">Sent date</th>
+                  <th className="px-5 py-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {PENDING_INVITES.map(([name, email, date]) => (
+                  <tr key={email}>
+                    <td className="px-5 py-3.5">
+                      <p className="font-medium text-neutral-900">{name}</p>
+                      <p className="text-xs text-neutral-400">{email}</p>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-600">
+                        Awaiting join
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-neutral-500">{date}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button className="text-sm font-medium text-neutral-700 hover:text-neutral-900">Resend</button>
+                      <button className="ml-4 text-sm font-medium text-red-500 hover:text-red-600">Remove</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+/* ============================================================ RESULTS (stub) === */
+function ResultsPlaceholder() {
+  const flow = useFlow()
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Results" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <span className="text-neutral-700">Results</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 flex items-center justify-center text-center px-8">
+          <div>
+            <div className="mx-auto w-12 h-12 rounded-xl bg-neutral-100 text-neutral-400 flex items-center justify-center">
+              <Icon path={icons.results} className="w-6 h-6" />
+            </div>
+            <h1 className="mt-4 text-lg font-semibold text-neutral-900">Results</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              Graded results will appear here once students submit.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
 /* ================================================================== APP === */
 export default function App() {
   const [screen, setScreen] = useState('signup')
   const [openBank, setOpenBank] = useState(QUESTION_BANKS[0])
 
+  // Timer / step counter shared across the publish flow.
+  const [startTs, setStartTs] = useState(null)
+  const [running, setRunning] = useState(false)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [frozen, setFrozen] = useState(false)
+  const [step, setStep] = useState('Step 1 of 5: Exam setup')
+  const [questionCount, setQuestionCount] = useState(0)
+
+  React.useEffect(() => {
+    if (!running || startTs == null) return
+    const id = setInterval(() => setElapsedMs(Date.now() - startTs), 250)
+    return () => clearInterval(id)
+  }, [running, startTs])
+
+  const flow = {
+    screen,
+    go: (s) => s && setScreen(s),
+    setStep,
+    questionCount,
+    setQuestionCount,
+    startTimer: () => {
+      if (startTs == null && !frozen) {
+        setStartTs(Date.now())
+        setRunning(true)
+      }
+    },
+    freezeTimer: () => {
+      setRunning(false)
+      setFrozen(true)
+    },
+  }
+
+  const showTimer = ['exam', 'editor', 'preview', 'published', 'invite'].includes(screen)
+
   return (
-    <div className="font-sans text-neutral-900">
-      {screen === 'signup' && <SignUp onCreate={() => setScreen('dashboard')} />}
-      {screen === 'dashboard' && (
-        <Dashboard
-          onBeginDrafting={() => setScreen('exam')}
-          onBulkUpload={() => setScreen('bulk')}
-          onQuestionBanks={() => setScreen('banks')}
-        />
-      )}
-      {screen === 'bulk' && (
-        <BulkImport onExit={() => setScreen('dashboard')} onAddToExam={() => setScreen('editor')} />
-      )}
-      {screen === 'exam' && (
-        <CreateExam onBack={() => setScreen('dashboard')} onContinue={() => setScreen('editor')} />
-      )}
-      {screen === 'editor' && <QuestionEditor onPreview={() => setScreen('preview')} />}
-      {screen === 'preview' && (
-        <Preview onExit={() => setScreen('editor')} onPublish={() => setScreen('editor')} />
-      )}
-      {screen === 'banks' && (
-        <QuestionBanks
-          onExit={() => setScreen('dashboard')}
-          onOpenBank={(b) => {
-            setOpenBank(b)
-            setScreen('bankView')
-          }}
-        />
-      )}
-      {screen === 'bankView' && (
-        <BankQuestions
-          bank={openBank}
-          onBack={() => setScreen('banks')}
-          onAddToExam={() => setScreen('editor')}
-        />
-      )}
-    </div>
+    <FlowCtx.Provider value={flow}>
+      <div className="font-sans text-neutral-900">
+        {screen === 'signup' && <SignUp onCreate={() => setScreen('dashboard')} />}
+        {screen === 'dashboard' && (
+          <Dashboard
+            onBeginDrafting={() => setScreen('exam')}
+            onBulkUpload={() => setScreen('bulk')}
+            onQuestionBanks={() => setScreen('banks')}
+          />
+        )}
+        {screen === 'exams' && <MyExams onCreate={() => setScreen('exam')} />}
+        {screen === 'bulk' && (
+          <BulkImport onExit={() => setScreen('dashboard')} onAddToExam={() => setScreen('editor')} />
+        )}
+        {screen === 'exam' && <CreateExam onContinue={() => setScreen('editor')} />}
+        {screen === 'editor' && <QuestionEditor onPreview={() => setScreen('preview')} />}
+        {screen === 'preview' && (
+          <Preview onExit={() => setScreen('editor')} onPublished={() => setScreen('published')} />
+        )}
+        {screen === 'published' && (
+          <Published
+            elapsedMs={elapsedMs}
+            questionCount={questionCount}
+            onInvite={() => setScreen('invite')}
+          />
+        )}
+        {screen === 'invite' && <InviteStudents />}
+        {screen === 'banks' && (
+          <QuestionBanks
+            onExit={() => setScreen('dashboard')}
+            onOpenBank={(b) => {
+              setOpenBank(b)
+              setScreen('bankView')
+            }}
+          />
+        )}
+        {screen === 'bankView' && (
+          <BankQuestions
+            bank={openBank}
+            onBack={() => setScreen('banks')}
+            onAddToExam={() => setScreen('editor')}
+          />
+        )}
+        {screen === 'results' && <ResultsPlaceholder />}
+
+        {showTimer && (
+          <TimerWidget
+            elapsedMs={elapsedMs}
+            step={step}
+            frozen={frozen}
+            questionCount={questionCount}
+          />
+        )}
+      </div>
+    </FlowCtx.Provider>
   )
 }
