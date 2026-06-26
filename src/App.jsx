@@ -64,6 +64,14 @@ const GripDots = ({ className = 'w-3.5 h-3.5 text-neutral-400' }) => (
   </svg>
 )
 
+const MoreDots = ({ className = 'w-4 h-4 text-neutral-400' }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="12" cy="5" r="1.6" />
+    <circle cx="12" cy="12" r="1.6" />
+    <circle cx="12" cy="19" r="1.6" />
+  </svg>
+)
+
 const EXAM_NAME = 'SS3 Chemistry Mid-Term'
 
 const GoogleMark = () => (
@@ -291,7 +299,7 @@ function Topbar() {
 }
 
 /* ============================================================ DASHBOARD === */
-function Dashboard({ onBeginDrafting, onBulkUpload }) {
+function Dashboard({ onBeginDrafting, onBulkUpload, onQuestionBanks }) {
   return (
     <div className="min-h-screen flex">
       <Sidebar active="Dashboard" />
@@ -305,65 +313,62 @@ function Dashboard({ onBeginDrafting, onBulkUpload }) {
             Create an exam, let AI grade it, and get your time back.
           </p>
 
-          <div className="mt-8 grid gap-5 lg:grid-cols-3">
-            {/* PRIMARY — largest, black button */}
-            <div className="lg:col-span-2 lg:row-span-1 rounded-2xl border border-neutral-200 bg-white p-7 flex flex-col">
-              <div className="w-11 h-11 rounded-xl bg-neutral-900 text-white flex items-center justify-center">
+          {/* All three options on one horizontal line; hierarchy via emphasis */}
+          <div className="mt-8 grid gap-5 lg:grid-cols-3 items-stretch">
+            {/* PRIMARY — emphasised: black icon tile + black button + ring */}
+            <div className="rounded-2xl border border-neutral-900/10 bg-white p-6 flex flex-col shadow-sm ring-1 ring-neutral-900/5">
+              <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center">
                 <Icon path={icons.pen} className="w-5 h-5" />
               </div>
-              <h2 className="mt-5 text-xl font-semibold text-neutral-900">Manual Input</h2>
-              <p className="mt-1.5 text-sm text-neutral-500 max-w-md">
-                Write and organize exam questions directly. The fastest way to get
-                your first exam ready.
+              <h2 className="mt-4 text-lg font-semibold text-neutral-900">Manual Input</h2>
+              <p className="mt-1.5 text-sm text-neutral-500">
+                Write and organize exam questions directly.
               </p>
-              <div className="mt-6">
+              <div className="mt-auto pt-5">
                 <button
                   onClick={onBeginDrafting}
-                  className="rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-black transition"
+                  className="w-full rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-black transition"
                 >
                   Begin drafting
                 </button>
               </div>
             </div>
 
-            {/* SECONDARY — smaller, muted, outline button */}
+            {/* SECONDARY — muted, outline button */}
             <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-6 flex flex-col">
-              <div className="w-9 h-9 rounded-lg bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center">
                 <Icon path={icons.upload} className="w-[18px] h-[18px]" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-neutral-800">Bulk Upload</h3>
-              <p className="mt-1 text-sm text-neutral-500">
+              <h3 className="mt-4 text-lg font-semibold text-neutral-800">Bulk Upload</h3>
+              <p className="mt-1.5 text-sm text-neutral-500">
                 Import questions from Excel, CSV, or JSON.
               </p>
               <div className="mt-auto pt-5">
                 <button
                   onClick={onBulkUpload}
-                  className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
                 >
                   Upload file
                 </button>
               </div>
             </div>
 
-            {/* DISABLED — greyed out with helper text below */}
-            <div className="rounded-2xl border border-dashed border-neutral-200 bg-neutral-50/40 p-6 flex flex-col opacity-70">
-              <div className="w-9 h-9 rounded-lg bg-neutral-100 text-neutral-400 flex items-center justify-center">
+            {/* TERTIARY — Question Banks, now enabled */}
+            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-6 flex flex-col">
+              <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center">
                 <Icon path={icons.bank} className="w-[18px] h-[18px]" />
               </div>
-              <h3 className="mt-4 text-base font-semibold text-neutral-400">My Question Bank</h3>
-              <p className="mt-1 text-sm text-neutral-400">
+              <h3 className="mt-4 text-lg font-semibold text-neutral-800">Question Banks</h3>
+              <p className="mt-1.5 text-sm text-neutral-500">
                 Reuse saved questions anytime.
               </p>
               <div className="mt-auto pt-5">
                 <button
-                  disabled
-                  className="rounded-lg border border-neutral-200 bg-neutral-100 px-4 py-2 text-sm font-medium text-neutral-400 cursor-not-allowed"
+                  onClick={onQuestionBanks}
+                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
                 >
-                  View questions
+                  Open
                 </button>
-                <p className="mt-2 text-xs text-neutral-400">
-                  Your saved questions will appear here once you create some.
-                </p>
               </div>
             </div>
           </div>
@@ -632,6 +637,7 @@ function QuestionEditor({ onPreview }) {
   const [shuffle, setShuffle] = useState(false)
   const [compulsory, setCompulsory] = useState(false)
   const [marks, setMarks] = useState(5)
+  const [showBankModal, setShowBankModal] = useState(false)
   const [markingGuide, setMarkingGuide] = useState('')
   const [options, setOptions] = useState([
     { id: 11, text: 'Sodium chloride', correct: false },
@@ -1007,12 +1013,19 @@ function QuestionEditor({ onPreview }) {
               <span className="text-sm text-neutral-600">Mark question as compulsory</span>
             </label>
 
-            <button className="mt-6 flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 bg-white py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition">
+            <button
+              onClick={() => setShowBankModal(true)}
+              className="mt-6 flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 bg-white py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+            >
               <Icon path={icons.plus} className="w-4 h-4" /> Save to my question bank
             </button>
           </div>
         </div>
       </div>
+
+      {showBankModal && (
+        <SaveToBankModal banks={QUESTION_BANKS} onClose={() => setShowBankModal(false)} />
+      )}
     </div>
   )
 }
@@ -1332,16 +1345,16 @@ function BulkBreadcrumb() {
   )
 }
 
-function BulkTopbar() {
+function CrumbTopbar({ children }) {
   return (
     <div className="flex items-center justify-between px-6 py-3.5 border-b border-neutral-200 bg-white/60">
-      <BulkBreadcrumb />
+      {children}
       <div className="flex items-center gap-3">
         <div className="relative hidden md:block">
           <Icon path={icons.search} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
           <input
             className="w-56 rounded-lg border border-neutral-200 bg-white pl-9 pr-3 py-2 text-sm placeholder:text-neutral-400 outline-none focus:border-neutral-400"
-            placeholder="Search resources…"
+            placeholder="ID or keyword…"
           />
         </div>
         <button className="w-9 h-9 rounded-full border border-neutral-200 bg-white flex items-center justify-center text-neutral-500 hover:bg-neutral-50">
@@ -1349,6 +1362,14 @@ function BulkTopbar() {
         </button>
       </div>
     </div>
+  )
+}
+
+function BulkTopbar() {
+  return (
+    <CrumbTopbar>
+      <BulkBreadcrumb />
+    </CrumbTopbar>
   )
 }
 
@@ -1841,9 +1862,365 @@ function BulkImport({ onExit, onAddToExam }) {
   )
 }
 
+/* =========================================================== QUESTION BANKS === */
+const QUESTION_BANKS = [
+  {
+    id: 1,
+    name: 'SS3 Chemistry Mid-Term',
+    desc: 'Acids, bases, salts and qualitative analysis.',
+    questions: 45,
+    edited: 'Edited 2 days ago',
+    inUse: true,
+  },
+  {
+    id: 2,
+    name: 'ECO 201 Microeconomics',
+    desc: 'Demand, supply and elasticity.',
+    questions: 32,
+    edited: 'Edited 6 days ago',
+  },
+  {
+    id: 3,
+    name: 'JSS Mathematics',
+    desc: 'Fractions, algebra and mensuration.',
+    questions: 60,
+    edited: 'Edited today',
+  },
+  {
+    id: 4,
+    name: 'SS2 Biology',
+    desc: 'Cell structure, ecology and genetics.',
+    questions: 28,
+    edited: 'Edited 18 Oct',
+  },
+  {
+    id: 5,
+    name: 'ECO 101 Intro to Economics',
+    desc: 'Basic economic problems and systems.',
+    questions: 21,
+    edited: 'Edited 12 Sept',
+  },
+]
+
+const BANK_QUESTIONS = [
+  { n: 1, text: 'State and explain the differences between strong and weak acids, with examples.', type: 'Short answer', points: 10 },
+  { n: 2, text: 'Which of the following salts is insoluble in water?', type: 'MCQ', points: 5 },
+  { n: 3, text: 'Define the term "water of crystallisation" and give one example of a hydrated salt.', type: 'Short answer', points: 8 },
+  { n: 4, text: 'Which gas is evolved when dilute hydrochloric acid reacts with calcium trioxocarbonate(IV)?', type: 'MCQ', points: 5 },
+  { n: 5, text: 'Explain, with an equation, what happens when sodium hydroxide reacts with ammonium chloride.', type: 'Short answer', points: 10 },
+  { n: 6, text: 'A salt that turns blue litmus red in solution is best described as…', type: 'MCQ', points: 5 },
+]
+
+/* ---- Screen 1: Save to question bank (modal) ---- */
+function SaveToBankModal({ banks, onClose }) {
+  const [name, setName] = useState('')
+  const [query, setQuery] = useState('')
+  const isEmpty = banks.length === 0
+  const filtered = banks.filter((b) =>
+    b.name.toLowerCase().includes(query.toLowerCase())
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+          <h2 className="text-base font-semibold text-neutral-900">Save to question bank</h2>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700">
+            <Icon path={icons.x} className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5">
+          {/* Create new bank */}
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+            Create new bank
+          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Enter bank name…"
+              className={inputCls}
+            />
+            <button className="shrink-0 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition">
+              Create &amp; add
+            </button>
+          </div>
+
+          {isEmpty ? (
+            <div className="mt-6 rounded-xl border border-neutral-200 bg-neutral-50/60 p-5 text-center">
+              <p className="text-sm text-neutral-600">
+                You don't have any question banks yet. Create one to save and reuse
+                questions.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                Add to existing
+              </p>
+              <div className="relative mt-2">
+                <Icon path={icons.search} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search banks…"
+                  className={inputCls + ' pl-9'}
+                />
+              </div>
+
+              <div className="mt-3 max-h-56 overflow-y-auto pr-1 space-y-1.5">
+                {filtered.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center gap-3 rounded-lg border border-neutral-200 px-3 py-2.5"
+                  >
+                    <span className="w-8 h-8 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center">
+                      <Icon path={icons.bank} className="w-4 h-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-neutral-800">{b.name}</p>
+                      <p className="text-xs text-neutral-400">
+                        {b.questions} questions · {b.edited.toLowerCase()}
+                      </p>
+                    </div>
+                    <button className="shrink-0 rounded-lg border border-neutral-300 px-3.5 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition">
+                      Add
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end px-5 py-4 border-t border-neutral-100">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-neutral-300 bg-white px-5 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ---- Screen 2: Question Banks (library) ---- */
+function QuestionBanks({ onOpenBank, onExit }) {
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Questions" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={onExit} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <span className="text-neutral-700">Question Banks</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 px-8 py-8 max-w-6xl mx-auto w-full">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">
+                Question Banks
+              </h1>
+              <p className="mt-1 text-sm text-neutral-500">Your saved question banks.</p>
+            </div>
+            <button className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition">
+              Create question bank
+            </button>
+          </div>
+
+          <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {QUESTION_BANKS.map((b) => (
+              <div key={b.id} className="rounded-2xl border border-neutral-200 bg-white p-5 flex flex-col">
+                <div className="flex items-center justify-between">
+                  <span className="w-10 h-10 rounded-xl bg-neutral-100 text-neutral-500 flex items-center justify-center">
+                    <Icon path={icons.bank} className="w-5 h-5" />
+                  </span>
+                  {b.inUse && (
+                    <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
+                      In use
+                    </span>
+                  )}
+                </div>
+                <h3 className="mt-4 text-base font-semibold text-neutral-900">{b.name}</h3>
+                <p className="mt-1 text-sm text-neutral-500 line-clamp-2">{b.desc}</p>
+
+                <div className="mt-4 flex items-center justify-between text-xs text-neutral-400">
+                  <span>Questions: {b.questions}</span>
+                  <span>Last edited: {b.edited.replace('Edited ', '')}</span>
+                </div>
+
+                <div className="mt-auto pt-4">
+                  <button
+                    onClick={() => onOpenBank(b)}
+                    className="w-full rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition"
+                  >
+                    Open
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+/* ---- Screen 3: Inside a bank (its questions) — view / select toggle ---- */
+function BankQuestions({ bank, onBack, onAddToExam }) {
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState({})
+  const selectedCount = Object.values(selected).filter(Boolean).length
+  const total = BANK_QUESTIONS.reduce((s, q) => s + q.points, 0)
+
+  const toggle = (n) => setSelected((s) => ({ ...s, [n]: !s[n] }))
+  const startSelect = () => {
+    setSelecting(true)
+    setSelected({})
+  }
+  const cancelSelect = () => {
+    setSelecting(false)
+    setSelected({})
+  }
+
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Questions" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={onBack} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <button onClick={onBack} className="hover:text-neutral-700">Question Banks</button>
+            <span>›</span>
+            <span className="text-neutral-700">{bank.name}</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 px-8 py-8 max-w-6xl mx-auto w-full">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">{bank.name}</h1>
+              <p className="mt-1 text-sm text-neutral-500">
+                {BANK_QUESTIONS.length} questions · {total} points
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition">
+                <Icon path={icons.plus} className="w-4 h-4" /> Add questions
+              </button>
+              {selecting ? (
+                <button
+                  onClick={cancelSelect}
+                  className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                >
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  onClick={startSelect}
+                  className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                >
+                  <Icon path={icons.check} className="w-4 h-4" /> Select
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-7 grid lg:grid-cols-3 gap-6">
+            {/* Question list */}
+            <div className="lg:col-span-2 space-y-2.5">
+              {BANK_QUESTIONS.map((q) => (
+                <div
+                  key={q.n}
+                  className={`flex items-start gap-3 rounded-xl border bg-white px-4 py-3.5 transition ${
+                    selecting && selected[q.n] ? 'border-neutral-900' : 'border-neutral-200'
+                  }`}
+                >
+                  {selecting && (
+                    <input
+                      type="checkbox"
+                      checked={!!selected[q.n]}
+                      onChange={() => toggle(q.n)}
+                      className="mt-1 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-300"
+                    />
+                  )}
+                  <span className="mt-0.5 text-xs font-medium text-neutral-400 w-6">
+                    {String(q.n).padStart(2, '0')}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-neutral-900">{q.text}</p>
+                    <div className="mt-2 flex items-center gap-2 text-[11px] uppercase tracking-wide text-neutral-400">
+                      <span className="rounded border border-neutral-200 px-1.5 py-0.5">{q.type}</span>
+                      <span>{q.points} points</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-neutral-400">
+                    <button className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center">
+                      <Icon path={icons.pen} className="w-4 h-4" />
+                    </button>
+                    <button className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center">
+                      <MoreDots />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick add from repository (optional, simple) */}
+            <div className="rounded-2xl border border-neutral-200 bg-white p-5 h-fit">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                Quick add from repository
+              </p>
+              <div className="mt-3 space-y-3">
+                {[
+                  ['Properties of Group 1 metals', 'CHM-204 · used in 4 banks'],
+                  ['Balancing redox equations', 'CHM-181 · used in 9 banks'],
+                  ['Periodic trends across Period 3', 'CHM-205 · used in 2 banks'],
+                ].map(([t, meta]) => (
+                  <button key={t} className="block w-full text-left rounded-lg px-2 py-1.5 hover:bg-neutral-50">
+                    <p className="text-sm text-neutral-800">{t}</p>
+                    <p className="text-xs text-neutral-400">{meta}</p>
+                  </button>
+                ))}
+              </div>
+              <button className="mt-4 w-full rounded-lg border border-neutral-300 py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition">
+                View all repository
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Selection action bar */}
+        {selecting && (
+          <div className="sticky bottom-0 border-t border-neutral-200 bg-white px-8 py-4">
+            <div className="max-w-6xl mx-auto flex items-center justify-between">
+              <span className="text-sm font-medium text-neutral-700">
+                {selectedCount} selected
+              </span>
+              <button
+                onClick={onAddToExam}
+                disabled={selectedCount === 0}
+                className="rounded-lg bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Add to exam
+              </button>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}
+
 /* ================================================================== APP === */
 export default function App() {
   const [screen, setScreen] = useState('signup')
+  const [openBank, setOpenBank] = useState(QUESTION_BANKS[0])
 
   return (
     <div className="font-sans text-neutral-900">
@@ -1852,6 +2229,7 @@ export default function App() {
         <Dashboard
           onBeginDrafting={() => setScreen('exam')}
           onBulkUpload={() => setScreen('bulk')}
+          onQuestionBanks={() => setScreen('banks')}
         />
       )}
       {screen === 'bulk' && (
@@ -1863,6 +2241,22 @@ export default function App() {
       {screen === 'editor' && <QuestionEditor onPreview={() => setScreen('preview')} />}
       {screen === 'preview' && (
         <Preview onExit={() => setScreen('editor')} onPublish={() => setScreen('editor')} />
+      )}
+      {screen === 'banks' && (
+        <QuestionBanks
+          onExit={() => setScreen('dashboard')}
+          onOpenBank={(b) => {
+            setOpenBank(b)
+            setScreen('bankView')
+          }}
+        />
+      )}
+      {screen === 'bankView' && (
+        <BankQuestions
+          bank={openBank}
+          onBack={() => setScreen('banks')}
+          onAddToExam={() => setScreen('editor')}
+        />
       )}
     </div>
   )
