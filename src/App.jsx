@@ -36,6 +36,7 @@ const icons = {
   bank: <><path d="M4 10h16" /><path d="M4 10 12 4l8 6" /><path d="M6 10v8M10 10v8M14 10v8M18 10v8" /><path d="M4 18h16" /></>,
   image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></>,
   chevron: <path d="m6 9 6 6 6-6" />,
+  chevronLeft: <path d="m15 18-6-6 6-6" />,
   check: <path d="M20 6 9 17l-5-5" />,
   headset: <><path d="M3 12a9 9 0 0 1 18 0" /><path d="M21 12v3a2 2 0 0 1-2 2h-1v-5h3ZM3 12v3a2 2 0 0 0 2 2h1v-5H3Z" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>,
@@ -621,18 +622,17 @@ const firstWords = (text, n = 4) => {
 
 function QuestionEditor({ onPreview }) {
   const flow = useFlow()
-  // Committed questions live in the left rail; the draft is the one being built.
+  // Added questions live in the left "Your questions" list; the card edits the next one.
   const [committed, setCommitted] = useState([])
   const [questionText, setQuestionText] = useState('')
   const [responseType, setResponseType] = useState('mc')
-  const [shuffle, setShuffle] = useState(false)
-  const [compulsory, setCompulsory] = useState(false)
   const [marks, setMarks] = useState(5)
-  const [showBankModal, setShowBankModal] = useState(false)
   const [markingGuide, setMarkingGuide] = useState('')
   const [options, setOptions] = useState([
-    { id: 11, text: '', correct: false },
-    { id: 12, text: '', correct: false },
+    { id: 1, text: '', correct: true },
+    { id: 2, text: '', correct: false },
+    { id: 3, text: '', correct: false },
+    { id: 4, text: '', correct: false },
   ])
 
   const nextId = React.useRef(100)
@@ -641,7 +641,7 @@ function QuestionEditor({ onPreview }) {
   const optionRefs = React.useRef({})
   const [focusOpt, setFocusOpt] = useState(null)
 
-  // The timer starts when the question editor opens (start of question 1).
+  // The timer behind the publish summary still starts when the editor opens.
   React.useEffect(() => {
     flow?.startTimer()
     flow?.setStep('Step 2 of 5: Adding questions')
@@ -654,40 +654,38 @@ function QuestionEditor({ onPreview }) {
     }
   }, [focusOpt, options])
 
-  // Count real questions (committed with text + the draft if it has text).
-  const committedReal = committed.filter((q) => q.text.trim()).length
-  const liveCount = committedReal + (questionText.trim() ? 1 : 0)
-  React.useEffect(() => {
-    flow?.setQuestionCount(liveCount)
-  }, [liveCount])
+  const draftHasText = questionText.trim().length > 0
+  const readyCount = committed.length + (draftHasText ? 1 : 0)
+  const committedMarks = committed.reduce((s, q) => s + q.marks, 0)
+  const totalMarks = committedMarks + (draftHasText ? marks : 0)
+  const qNumber = committed.length + 1
 
-  // Live list = committed questions + the in-progress draft (always last, active).
-  const liveList = [
-    ...committed.map((q, i) => ({ ...q, qno: i + 1, active: false })),
-    { id: 'draft', text: questionText, qno: committed.length + 1, active: true },
-  ]
+  React.useEffect(() => {
+    flow?.setQuestionCount(readyCount)
+  }, [readyCount])
 
   const setCorrect = (id) =>
     setOptions((o) => o.map((opt) => ({ ...opt, correct: opt.id === id })))
-  const removeOption = (id) => setOptions((o) => o.filter((opt) => opt.id !== id))
+  const updateOption = (id, text) =>
+    setOptions((o) => o.map((opt) => (opt.id === id ? { ...opt, text } : opt)))
+  const removeOption = (id) =>
+    setOptions((o) => {
+      if (o.length <= 2) return o
+      const wasCorrect = o.find((x) => x.id === id)?.correct
+      const left = o.filter((x) => x.id !== id)
+      if (wasCorrect && left.length) left[0] = { ...left[0], correct: true }
+      return left
+    })
   const addOption = (afterIdx) => {
     const id = newId()
     setOptions((o) => {
       const copy = [...o]
-      copy.splice(afterIdx == null ? copy.length : afterIdx + 1, 0, {
-        id,
-        text: '',
-        correct: false,
-      })
+      copy.splice(afterIdx == null ? copy.length : afterIdx + 1, 0, { id, text: '', correct: false })
       return copy
     })
     setFocusOpt(id)
   }
-  const updateOption = (id, text) =>
-    setOptions((o) => o.map((opt) => (opt.id === id ? { ...opt, text } : opt)))
-
-  // Enter inside the options area adds a new option row (fast entry) — never
-  // advances the question, so question/marking-guide fields keep line breaks.
+  // Enter inside an option adds the next option (fast entry).
   const onOptionKeyDown = (e, idx) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -695,339 +693,256 @@ function QuestionEditor({ onPreview }) {
     }
   }
 
-  // Commit the current draft to the list and clear the editor for a fresh one.
-  const saveAndAddNext = () => {
-    setCommitted((c) => [...c, { id: newId(), text: questionText, type: responseType }])
+  const freshDraft = () => {
     setQuestionText('')
     setResponseType('mc')
+    setMarkingGuide('')
+    setMarks(5)
     setOptions([
+      { id: newId(), text: '', correct: true },
+      { id: newId(), text: '', correct: false },
       { id: newId(), text: '', correct: false },
       { id: newId(), text: '', correct: false },
     ])
-    setMarkingGuide('')
-    setShuffle(false)
-    setCompulsory(false)
-    setMarks(5)
+  }
+
+  // Commit the current question to the list and open a fresh one.
+  const addNext = () => {
+    if (!draftHasText) {
+      questionRef.current?.focus()
+      return
+    }
+    setCommitted((c) => [...c, { id: newId(), text: questionText, type: responseType, marks }])
+    freshDraft()
     setTimeout(() => questionRef.current?.focus(), 0)
   }
 
-  return (
-    <div className="min-h-screen flex">
-      <IconRail active="exams" />
+  const typeLabel = (t) => (t === 'mc' ? 'Multiple choice' : 'Written answer')
 
-      <div className="flex-1 flex flex-col">
-        {/* Top bar — Preview is the only forward action; no Publish here. */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 bg-white">
-          <nav className="flex items-center gap-2 text-sm text-neutral-400">
-            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
-            <span>›</span>
-            <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
-            <span>›</span>
-            <span className="text-neutral-700">{EXAM_NAME}</span>
-          </nav>
-          <div className="flex items-center gap-3">
-            <div className="relative hidden md:block">
-              <Icon path={icons.search} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-              <input
-                className="w-56 rounded-lg border border-neutral-200 bg-white pl-9 pr-3 py-2 text-sm placeholder:text-neutral-400 outline-none focus:border-neutral-400"
-                placeholder="Search resources…"
-              />
+  return (
+    <div className="min-h-screen bg-neutral-50">
+      {/* Top bar */}
+      <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-3.5 bg-neutral-50/90 backdrop-blur border-b border-neutral-200">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => flow?.go('exams')}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-neutral-500 hover:bg-neutral-100"
+          >
+            <Icon path={icons.chevronLeft} className="w-5 h-5" />
+          </button>
+          <Logo />
+        </div>
+        <button
+          onClick={onPreview}
+          disabled={readyCount === 0}
+          className="rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          Continue · {readyCount}
+        </button>
+      </div>
+
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        {/* Header */}
+        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Marking guide</p>
+        <h1 className="mt-1 text-4xl font-bold tracking-tight text-neutral-900">{EXAM_NAME}</h1>
+        <p className="mt-2 text-neutral-500">
+          Add your questions one at a time. Teach the AI exactly what earns each mark.
+        </p>
+
+        <div className="mt-8 grid lg:grid-cols-[300px_1fr] gap-8 items-start">
+          {/* YOUR QUESTIONS */}
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Your questions</p>
+              {committed.length > 0 && (
+                <span className="text-xs text-neutral-400">{committedMarks} marks</span>
+              )}
             </div>
+
+            <div className="mt-3 space-y-2">
+              {committed.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-400">
+                  Nothing added yet. Your questions will appear here as you build the guide.
+                </div>
+              ) : (
+                committed.map((q, i) => (
+                  <div key={q.id} className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold text-neutral-600">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-neutral-900">{firstWords(q.text, 6)}</p>
+                      <p className="text-xs text-neutral-400">{typeLabel(q.type)} · {q.marks} marks</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Editor card */}
+          <div className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-neutral-900">Question {qNumber}</h2>
+              <span className="flex items-center gap-1.5 text-sm text-neutral-400">
+                <span className="h-2 w-2 rounded-full bg-neutral-900" /> Auto-saves to your list
+              </span>
+            </div>
+
+            {/* Question */}
+            <label className="mt-6 block text-sm font-medium text-neutral-700">Question</label>
+            <textarea
+              ref={questionRef}
+              rows={3}
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              placeholder="e.g. Explain why barium sulphate is insoluble in water."
+              className="mt-2 w-full resize-none rounded-2xl border border-neutral-200 bg-neutral-50/60 px-4 py-3.5 text-base text-neutral-900 placeholder:text-neutral-300 outline-none focus:border-neutral-400 focus:bg-white transition"
+            />
+
+            {/* Response type */}
+            <p className="mt-6 text-sm font-medium text-neutral-700">Response type</p>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              {[
+                ['text', 'Written answer', 'Graded against your guide'],
+                ['mc', 'Multiple choice', 'Mark the correct option'],
+              ].map(([key, title, sub]) => {
+                const sel = responseType === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setResponseType(key)}
+                    className={`rounded-2xl border px-4 py-3.5 text-left transition ${
+                      sel ? 'border-neutral-900 bg-neutral-50 ring-1 ring-neutral-900' : 'border-neutral-200 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-neutral-900">{title}</p>
+                    <p className="text-xs text-neutral-400">{sub}</p>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Written answer -> Marking guide */}
+            {responseType === 'text' && (
+              <div className="mt-6">
+                <p className="text-base font-bold text-neutral-900">Marking guide</p>
+                <p className="mt-0.5 text-sm text-neutral-500">
+                  The AI grades strictly against this and explains every score using it.
+                </p>
+                <textarea
+                  rows={5}
+                  value={markingGuide}
+                  onChange={(e) => setMarkingGuide(e.target.value)}
+                  placeholder="e.g. Award 2 marks for stating barium sulphate is insoluble; 2 marks for explaining the insoluble precipitate forms; 1 mark for a correct ionic equation. Be specific about what earns each mark."
+                  className="mt-3 w-full resize-none rounded-2xl border border-neutral-200 bg-neutral-50/60 px-4 py-3.5 text-base text-neutral-900 placeholder:text-neutral-300 outline-none focus:border-neutral-400 focus:bg-white transition"
+                />
+              </div>
+            )}
+
+            {/* MCQ -> Options */}
+            {responseType === 'mc' && (
+              <div className="mt-6">
+                <p className="text-base font-bold text-neutral-900">Options</p>
+                <p className="mt-0.5 text-sm text-neutral-500">
+                  Add the options and tap the circle to mark the correct one — that's the marking guide.
+                </p>
+                <div className="mt-3 space-y-2.5">
+                  {options.map((opt, idx) => (
+                    <div
+                      key={opt.id}
+                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+                        opt.correct ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setCorrect(opt.id)}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition ${
+                          opt.correct
+                            ? 'border-neutral-900 bg-neutral-900 text-white'
+                            : 'border-neutral-300 text-transparent hover:border-neutral-400'
+                        }`}
+                        aria-label="Mark correct"
+                      >
+                        <Icon path={icons.check} className="w-3.5 h-3.5" stroke={3} />
+                      </button>
+                      <input
+                        ref={(el) => (optionRefs.current[opt.id] = el)}
+                        value={opt.text}
+                        onChange={(e) => updateOption(opt.id, e.target.value)}
+                        onKeyDown={(e) => onOptionKeyDown(e, idx)}
+                        placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                        className="flex-1 bg-transparent text-base text-neutral-900 placeholder:text-neutral-300 outline-none"
+                      />
+                      {options.length > 2 && (
+                        <button
+                          onClick={() => removeOption(opt.id)}
+                          className="text-neutral-300 hover:text-red-500 transition"
+                          aria-label="Remove option"
+                        >
+                          <Icon path={icons.x} className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => addOption()}
+                  className="mt-3 text-sm font-semibold text-neutral-700 hover:text-neutral-900"
+                >
+                  + Add option
+                </button>
+              </div>
+            )}
+
+            {/* Marks */}
+            <div className="mt-7 flex items-center gap-4">
+              <span className="text-sm font-medium text-neutral-700">Marks</span>
+              <div className="flex items-center rounded-xl border border-neutral-200 bg-neutral-50/60">
+                <button
+                  onClick={() => setMarks((m) => Math.max(1, m - 1))}
+                  className="px-3.5 py-2 text-lg text-neutral-500 hover:text-neutral-900"
+                >
+                  −
+                </button>
+                <span className="w-10 text-center text-sm font-semibold text-neutral-900">{marks}</span>
+                <button
+                  onClick={() => setMarks((m) => m + 1)}
+                  className="px-3.5 py-2 text-lg text-neutral-500 hover:text-neutral-900"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Add next question */}
             <button
-              onClick={onPreview}
-              className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+              onClick={addNext}
+              className="mt-7 w-full flex items-center justify-center gap-2 rounded-2xl bg-neutral-900 py-3.5 text-sm font-semibold text-white hover:bg-black transition"
             >
-              <Icon path={icons.eye} className="w-4 h-4" /> Preview
+              <Icon path={icons.plus} className="w-4 h-4" /> Add next question
             </button>
           </div>
         </div>
 
-        <div className="flex-1 flex">
-          {/* Manual Editor panel */}
-          <div className="w-60 shrink-0 border-r border-neutral-200 bg-white p-4 flex flex-col">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-              Manual Editor
+        {/* Sticky continue bar */}
+        <div className="sticky bottom-5 mt-6">
+          <div className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-6 py-4 shadow-lg shadow-neutral-300/30">
+            <p className="text-sm text-neutral-600">
+              {readyCount} question{readyCount === 1 ? '' : 's'} · {totalMarks} marks ready. Add more, or move on
+              when you're done.
             </p>
-            <p className="mt-3 text-xs text-neutral-400">
-              Drafting · <span className="text-neutral-700 font-medium">{EXAM_NAME}</span>
-            </p>
-
-            {/* Source tabs */}
-            <div className="mt-4 grid grid-cols-3 rounded-lg border border-neutral-200 p-0.5 text-xs">
-              {['Manual', 'From bank', 'Upload'].map((t, i) => (
-                <button
-                  key={t}
-                  className={`rounded-md py-1.5 font-medium transition ${
-                    i === 0 ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-50'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            {/* Questions list — populates live as the teacher builds */}
-            <div className="mt-5 flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Questions
-              </span>
-              <span className="text-[11px] text-neutral-400">{liveList.length} total</span>
-            </div>
-            <div className="mt-2 space-y-1.5">
-              {liveList.map((q) => (
-                <div
-                  key={q.id}
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm ${
-                    q.active
-                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900'
-                      : 'border-neutral-200 text-neutral-500'
-                  }`}
-                >
-                  <GripDots />
-                  <span className="font-medium text-xs text-neutral-400">Q{q.qno}</span>
-                  <span className="truncate">{firstWords(q.text)}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Secondary way to start a new question */}
             <button
-              onClick={saveAndAddNext}
-              className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition"
+              onClick={onPreview}
+              disabled={readyCount === 0}
+              className="rounded-full bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              <Icon path={icons.plus} className="w-3.5 h-3.5" /> Add new block
-            </button>
-
-            {/* The single save concept: saves the whole exam draft */}
-            <button className="mt-auto rounded-lg border border-neutral-300 bg-white py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition">
-              Save exam draft
-            </button>
-          </div>
-
-          {/* Center editing area */}
-          <div className="flex-1 flex flex-col">
-            <div className="flex-1 px-8 py-6 overflow-y-auto">
-              {/* Formatting toolbar */}
-              <div className="flex items-center gap-1 text-neutral-500">
-                {[icons.image, icons.list].map((p, i) => (
-                  <button key={i} className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center">
-                    <Icon path={p} className="w-4 h-4" />
-                  </button>
-                ))}
-                <button className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center text-sm font-semibold">
-                  Aa
-                </button>
-              </div>
-
-              {/* Question text — Enter inserts a line break (no advancing) */}
-              <textarea
-                ref={questionRef}
-                rows={2}
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                placeholder="Type your question here…"
-                className="mt-3 w-full resize-none bg-transparent text-xl font-medium text-neutral-900 placeholder:text-neutral-300 outline-none"
-              />
-
-              {/* Response type tabs */}
-              <p className="mt-6 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Response type
-              </p>
-              <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {RESPONSE_TYPES.map(([key, label, path, enabled]) => {
-                  const activeTab = responseType === key
-                  return (
-                    <button
-                      key={key}
-                      disabled={!enabled}
-                      onClick={() => enabled && setResponseType(key)}
-                      className={`relative flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition ${
-                        !enabled
-                          ? 'border-neutral-200 bg-neutral-50 text-neutral-300 cursor-not-allowed'
-                          : activeTab
-                          ? 'border-neutral-900 bg-white text-neutral-900 shadow-sm'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <Icon path={path} className="w-4 h-4" />
-                      {label}
-                      {!enabled && (
-                        <span className="absolute -top-2 right-1.5 rounded-full bg-neutral-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-neutral-500">
-                          Coming soon
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* MULTIPLE CHOICE */}
-              {responseType === 'mc' && (
-                <div className="mt-6">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                      Options
-                    </p>
-                    <label className="flex items-center gap-2 text-xs text-neutral-600 cursor-pointer">
-                      <Icon path={icons.shuffle} className="w-3.5 h-3.5 text-neutral-400" />
-                      Shuffle
-                      <button
-                        type="button"
-                        onClick={() => setShuffle((s) => !s)}
-                        className={`relative h-5 w-9 rounded-full transition ${
-                          shuffle ? 'bg-neutral-900' : 'bg-neutral-200'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                            shuffle ? 'left-[18px]' : 'left-0.5'
-                          }`}
-                        />
-                      </button>
-                    </label>
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {options.map((opt, idx) => (
-                      <div
-                        key={opt.id}
-                        className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-2.5"
-                      >
-                        <GripDots />
-                        <input
-                          ref={(el) => (optionRefs.current[opt.id] = el)}
-                          value={opt.text}
-                          onChange={(e) => updateOption(opt.id, e.target.value)}
-                          onKeyDown={(e) => onOptionKeyDown(e, idx)}
-                          placeholder="Option text"
-                          className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 outline-none"
-                        />
-                        <label className="flex items-center gap-2 text-xs text-neutral-500">
-                          Correct answer
-                          <button
-                            type="button"
-                            onClick={() => setCorrect(opt.id)}
-                            className={`relative h-5 w-9 rounded-full transition ${
-                              opt.correct ? 'bg-emerald-500' : 'bg-neutral-200'
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                                opt.correct ? 'left-[18px]' : 'left-0.5'
-                              }`}
-                            />
-                          </button>
-                        </label>
-                        <button
-                          onClick={() => removeOption(opt.id)}
-                          className="text-neutral-300 hover:text-red-500 transition"
-                        >
-                          <Icon path={icons.trash} className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => addOption()}
-                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2.5 text-sm font-medium text-neutral-500 hover:bg-neutral-50 transition"
-                  >
-                    <Icon path={icons.plus} className="w-4 h-4" /> Add option
-                  </button>
-                  <p className="mt-2 text-xs text-neutral-400">
-                    Tip: press Enter inside an option to add the next one.
-                  </p>
-                </div>
-              )}
-
-              {/* TEXT */}
-              {responseType === 'text' && (
-                <div className="mt-6 space-y-5">
-                  <Field label="Marking guide">
-                    <textarea
-                      rows={5}
-                      value={markingGuide}
-                      onChange={(e) => setMarkingGuide(e.target.value)}
-                      placeholder="e.g. Award 2 marks for stating barium sulphate is insoluble; 2 marks for explaining the formation of an insoluble precipitate; 1 mark for a correct ionic equation."
-                      className={inputCls + ' resize-none'}
-                    />
-                    <p className="mt-1.5 text-xs text-neutral-400">
-                      Describe what a correct answer should include and how marks are
-                      awarded. The AI grades strictly against this.
-                    </p>
-                  </Field>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <Field label="Min characters">
-                      <input className={inputCls} defaultValue="50" />
-                    </Field>
-                    <Field label="Max characters">
-                      <input className={inputCls} defaultValue="500" />
-                    </Field>
-                    <Field label="Response length">
-                      <select className={inputCls + ' appearance-none'} defaultValue="short">
-                        <option value="short">Short answer</option>
-                        <option value="long">Long answer</option>
-                      </select>
-                    </Field>
-                  </div>
-                </div>
-              )}
-
-              {/* PRIMARY action — right under the answer area, where focus is */}
-              <div className="mt-8 border-t border-neutral-100 pt-5">
-                <button
-                  onClick={saveAndAddNext}
-                  className="flex items-center gap-2 rounded-lg bg-neutral-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-black transition"
-                >
-                  <Icon path={icons.plus} className="w-4 h-4" /> Save &amp; add next question
-                </button>
-                <p className="mt-2 text-xs text-neutral-400">
-                  Adds this question to the list and opens a fresh one. Questions
-                  auto-save into the list as you build them.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Right settings panel */}
-          <div className="w-72 shrink-0 border-l border-neutral-200 bg-white p-5 flex flex-col">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Question settings
-              </p>
-              <button className="text-[11px] text-neutral-400 hover:text-neutral-700">Reset</button>
-            </div>
-
-            <div className="mt-5">
-              <Field label="Marks">
-                <input className={inputCls} defaultValue="5" type="number" />
-              </Field>
-            </div>
-
-            <label className="mt-5 flex items-start gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={compulsory}
-                onChange={(e) => setCompulsory(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-300"
-              />
-              <span className="text-sm text-neutral-600">Mark question as compulsory</span>
-            </label>
-
-            <button
-              onClick={() => setShowBankModal(true)}
-              className="mt-6 flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 bg-white py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
-            >
-              <Icon path={icons.plus} className="w-4 h-4" /> Save to my question bank
+              Continue
             </button>
           </div>
         </div>
       </div>
-
-      {showBankModal && (
-        <SaveToBankModal banks={QUESTION_BANKS} onClose={() => setShowBankModal(false)} />
-      )}
     </div>
   )
 }
@@ -2256,39 +2171,6 @@ function BankQuestions({ bank, onBack, onAddToExam }) {
   )
 }
 
-/* ============================================================ TIMER WIDGET === */
-function TimerWidget({ elapsedMs, step, frozen, questionCount }) {
-  const fmt = (ms) => {
-    const s = Math.floor(ms / 1000)
-    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
-  }
-  return (
-    <div className="fixed bottom-5 right-5 z-40 w-64 rounded-xl border border-neutral-200 bg-white shadow-lg shadow-neutral-300/30 p-4">
-      {frozen ? (
-        <>
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-600">
-            <Icon path={icons.check} className="w-3.5 h-3.5" stroke={3} /> Published
-          </p>
-          <p className="mt-1.5 text-sm text-neutral-700">
-            Published in <span className="font-semibold text-neutral-900">{fmt(elapsedMs)}</span>
-          </p>
-          <p className="text-xs text-neutral-400">{questionCount} questions · 5 steps</p>
-        </>
-      ) : (
-        <>
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">
-              Creation timer
-            </span>
-            <span className="text-lg font-semibold tabular-nums text-neutral-900">{fmt(elapsedMs)}</span>
-          </div>
-          <p className="mt-1 text-xs text-neutral-500">{step}</p>
-        </>
-      )}
-    </div>
-  )
-}
-
 /* ============================================================== MY EXAMS === */
 const MY_EXAMS = [
   { id: 1, name: 'SS3 Chemistry Mid-Term', course: 'Chemistry · SS3', questions: 12, status: 'Draft' },
@@ -2612,8 +2494,6 @@ export default function App() {
     },
   }
 
-  const showTimer = ['exam', 'editor', 'preview', 'published', 'invite'].includes(screen)
-
   return (
     <FlowCtx.Provider value={flow}>
       <div className="font-sans text-neutral-900">
@@ -2659,15 +2539,6 @@ export default function App() {
           />
         )}
         {screen === 'results' && <ResultsPlaceholder />}
-
-        {showTimer && (
-          <TimerWidget
-            elapsedMs={elapsedMs}
-            step={step}
-            frozen={frozen}
-            questionCount={questionCount}
-          />
-        )}
       </div>
     </FlowCtx.Provider>
   )
