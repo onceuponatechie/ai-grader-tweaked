@@ -36,6 +36,7 @@ const icons = {
   bank: <><path d="M4 10h16" /><path d="M4 10 12 4l8 6" /><path d="M6 10v8M10 10v8M14 10v8M18 10v8" /><path d="M4 18h16" /></>,
   image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></>,
   chevron: <path d="m6 9 6 6 6-6" />,
+  chevronLeft: <path d="m15 18-6-6 6-6" />,
   check: <path d="M20 6 9 17l-5-5" />,
   headset: <><path d="M3 12a9 9 0 0 1 18 0" /><path d="M21 12v3a2 2 0 0 1-2 2h-1v-5h3ZM3 12v3a2 2 0 0 0 2 2h1v-5H3Z" /></>,
   search: <><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></>,
@@ -73,6 +74,32 @@ const MoreDots = ({ className = 'w-4 h-4 text-neutral-400' }) => (
 )
 
 const EXAM_NAME = 'SS3 Chemistry Mid-Term'
+
+/* Shared flow state: in-app navigation + the publish timer/step counter. */
+const FlowCtx = React.createContext(null)
+const useFlow = () => React.useContext(FlowCtx)
+
+const NAV_TARGET = {
+  Dashboard: 'dashboard',
+  Exams: 'exams',
+  Questions: 'banks',
+  Students: 'invite',
+  Results: 'results',
+}
+// reverse map: screen -> sidebar label to highlight
+const SCREEN_LABEL = {
+  dashboard: 'Dashboard',
+  exams: 'Exams',
+  exam: 'Exams',
+  editor: 'Exams',
+  preview: 'Exams',
+  published: 'Exams',
+  banks: 'Questions',
+  bankView: 'Questions',
+  bulk: 'Exams',
+  invite: 'Students',
+  results: 'Results',
+}
 
 const GoogleMark = () => (
   <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -216,6 +243,7 @@ function SignUp({ onCreate }) {
 
 /* ============================================================ APP SHELL === */
 function Sidebar({ active = 'Dashboard' }) {
+  const flow = useFlow()
   const nav = [
     ['Dashboard', icons.dashboard],
     ['Exams', icons.exams],
@@ -236,6 +264,7 @@ function Sidebar({ active = 'Dashboard' }) {
         {nav.map(([label, path]) => (
           <button
             key={label}
+            onClick={() => flow?.go(NAV_TARGET[label])}
             className={`w-full flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition ${
               active === label
                 ? 'bg-neutral-100 text-neutral-900 font-medium'
@@ -379,42 +408,6 @@ function Dashboard({ onBeginDrafting, onBulkUpload, onQuestionBanks }) {
 }
 
 /* =========================================================== CREATE EXAM === */
-function GettingStarted() {
-  const items = [
-    ['Create your first exam', true],
-    ['Add questions', false],
-    ['Invite students', false],
-    ['Publish exam', false],
-  ]
-  return (
-    <div className="w-72 rounded-2xl border border-neutral-200 bg-white shadow-lg shadow-neutral-200/50 p-5">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-semibold text-neutral-900">Getting started</p>
-        <span className="text-xs text-neutral-400">25% complete</span>
-      </div>
-      <div className="mt-2 h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
-        <div className="h-full w-1/4 rounded-full bg-neutral-900" />
-      </div>
-      <ul className="mt-4 space-y-2.5">
-        {items.map(([label, done]) => (
-          <li key={label} className="flex items-center gap-2.5 text-sm">
-            <span
-              className={`flex h-4 w-4 items-center justify-center rounded-full border ${
-                done ? 'bg-neutral-900 border-neutral-900 text-white' : 'border-neutral-300'
-              }`}
-            >
-              {done && <Icon path={icons.check} className="w-2.5 h-2.5" stroke={3} />}
-            </span>
-            <span className={done ? 'text-neutral-400 line-through' : 'text-neutral-700'}>
-              {label}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
 function DurationButtons() {
   const [val, setVal] = useState(60) // 60 min selected by default
   return (
@@ -434,9 +427,14 @@ function DurationButtons() {
   )
 }
 
-function CreateExam({ onBack, onContinue }) {
+function CreateExam({ onContinue }) {
+  const flow = useFlow()
   const [title, setTitle] = useState('')
   const [optionalOpen, setOptionalOpen] = useState(false) // collapsed by default
+
+  React.useEffect(() => {
+    flow?.setStep('Step 1 of 5: Exam setup')
+  }, [])
 
   return (
     <div className="min-h-screen flex">
@@ -448,9 +446,9 @@ function CreateExam({ onBack, onContinue }) {
           <div className="px-8 py-8 max-w-3xl mx-auto w-full">
             {/* Breadcrumb */}
             <nav className="flex items-center gap-2 text-sm text-neutral-400">
-              <button onClick={onBack} className="hover:text-neutral-700">Home</button>
+              <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
               <span>›</span>
-              <button onClick={onBack} className="hover:text-neutral-700">Exams</button>
+              <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
               <span>›</span>
               <span className="text-neutral-700">New Exam</span>
             </nav>
@@ -559,11 +557,6 @@ function CreateExam({ onBack, onContinue }) {
               You just need a title, course, and duration to continue.
             </p>
           </div>
-
-          {/* Floating Getting Started card */}
-          <div className="hidden xl:block absolute right-8 top-8">
-            <GettingStarted />
-          </div>
         </div>
       </main>
     </div>
@@ -572,20 +565,22 @@ function CreateExam({ onBack, onContinue }) {
 
 /* ============================================================= ICON RAIL === */
 function IconRail({ active = 'exams' }) {
+  const flow = useFlow()
   const items = [
-    ['dashboard', icons.dashboard],
-    ['exams', icons.exams],
-    ['questions', icons.questions],
-    ['students', icons.students],
-    ['results', icons.results],
+    ['dashboard', icons.dashboard, 'dashboard'],
+    ['exams', icons.exams, 'exams'],
+    ['questions', icons.questions, 'banks'],
+    ['students', icons.students, 'invite'],
+    ['results', icons.results, 'results'],
   ]
   return (
     <aside className="w-14 shrink-0 bg-white border-r border-neutral-200 flex flex-col items-center py-4">
       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-neutral-700 to-black mb-6" />
       <nav className="flex-1 flex flex-col items-center gap-1.5">
-        {items.map(([key, path]) => (
+        {items.map(([key, path, target]) => (
           <button
             key={key}
+            onClick={() => flow?.go(target)}
             className={`w-9 h-9 rounded-lg flex items-center justify-center transition ${
               active === key
                 ? 'bg-neutral-100 text-neutral-900'
@@ -626,24 +621,18 @@ const firstWords = (text, n = 4) => {
 }
 
 function QuestionEditor({ onPreview }) {
-  // Committed questions live in the left rail; the draft is the one being built.
-  const [committed, setCommitted] = useState([
-    { id: 1, text: 'Define an acid according to the Arrhenius theory.', type: 'text' },
-  ])
-  const [questionText, setQuestionText] = useState(
-    'Which of the following salts is insoluble in water?'
-  )
+  const flow = useFlow()
+  // Added questions live in the left "Your questions" list; the card edits the next one.
+  const [committed, setCommitted] = useState([])
+  const [questionText, setQuestionText] = useState('')
   const [responseType, setResponseType] = useState('mc')
-  const [shuffle, setShuffle] = useState(false)
-  const [compulsory, setCompulsory] = useState(false)
   const [marks, setMarks] = useState(5)
-  const [showBankModal, setShowBankModal] = useState(false)
   const [markingGuide, setMarkingGuide] = useState('')
   const [options, setOptions] = useState([
-    { id: 11, text: 'Sodium chloride', correct: false },
-    { id: 12, text: 'Barium sulphate', correct: true },
-    { id: 13, text: 'Potassium trioxonitrate(V)', correct: false },
-    { id: 14, text: 'Ammonium chloride', correct: false },
+    { id: 1, text: '', correct: true },
+    { id: 2, text: '', correct: false },
+    { id: 3, text: '', correct: false },
+    { id: 4, text: '', correct: false },
   ])
 
   const nextId = React.useRef(100)
@@ -652,6 +641,12 @@ function QuestionEditor({ onPreview }) {
   const optionRefs = React.useRef({})
   const [focusOpt, setFocusOpt] = useState(null)
 
+  // The timer behind the publish summary still starts when the editor opens.
+  React.useEffect(() => {
+    flow?.startTimer()
+    flow?.setStep('Step 2 of 5: Adding questions')
+  }, [])
+
   React.useEffect(() => {
     if (focusOpt != null && optionRefs.current[focusOpt]) {
       optionRefs.current[focusOpt].focus()
@@ -659,33 +654,38 @@ function QuestionEditor({ onPreview }) {
     }
   }, [focusOpt, options])
 
-  // Live list = committed questions + the in-progress draft (always last, active).
-  const liveList = [
-    ...committed.map((q, i) => ({ ...q, qno: i + 1, active: false })),
-    { id: 'draft', text: questionText, qno: committed.length + 1, active: true },
-  ]
+  const draftHasText = questionText.trim().length > 0
+  const readyCount = committed.length + (draftHasText ? 1 : 0)
+  const committedMarks = committed.reduce((s, q) => s + q.marks, 0)
+  const totalMarks = committedMarks + (draftHasText ? marks : 0)
+  const qNumber = committed.length + 1
+
+  React.useEffect(() => {
+    flow?.setQuestionCount(readyCount)
+  }, [readyCount])
 
   const setCorrect = (id) =>
     setOptions((o) => o.map((opt) => ({ ...opt, correct: opt.id === id })))
-  const removeOption = (id) => setOptions((o) => o.filter((opt) => opt.id !== id))
+  const updateOption = (id, text) =>
+    setOptions((o) => o.map((opt) => (opt.id === id ? { ...opt, text } : opt)))
+  const removeOption = (id) =>
+    setOptions((o) => {
+      if (o.length <= 2) return o
+      const wasCorrect = o.find((x) => x.id === id)?.correct
+      const left = o.filter((x) => x.id !== id)
+      if (wasCorrect && left.length) left[0] = { ...left[0], correct: true }
+      return left
+    })
   const addOption = (afterIdx) => {
     const id = newId()
     setOptions((o) => {
       const copy = [...o]
-      copy.splice(afterIdx == null ? copy.length : afterIdx + 1, 0, {
-        id,
-        text: '',
-        correct: false,
-      })
+      copy.splice(afterIdx == null ? copy.length : afterIdx + 1, 0, { id, text: '', correct: false })
       return copy
     })
     setFocusOpt(id)
   }
-  const updateOption = (id, text) =>
-    setOptions((o) => o.map((opt) => (opt.id === id ? { ...opt, text } : opt)))
-
-  // Enter inside the options area adds a new option row (fast entry) — never
-  // advances the question, so question/marking-guide fields keep line breaks.
+  // Enter inside an option adds the next option (fast entry).
   const onOptionKeyDown = (e, idx) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -693,339 +693,256 @@ function QuestionEditor({ onPreview }) {
     }
   }
 
-  // Commit the current draft to the list and clear the editor for a fresh one.
-  const saveAndAddNext = () => {
-    setCommitted((c) => [...c, { id: newId(), text: questionText, type: responseType }])
+  const freshDraft = () => {
     setQuestionText('')
     setResponseType('mc')
+    setMarkingGuide('')
+    setMarks(5)
     setOptions([
+      { id: newId(), text: '', correct: true },
+      { id: newId(), text: '', correct: false },
       { id: newId(), text: '', correct: false },
       { id: newId(), text: '', correct: false },
     ])
-    setMarkingGuide('')
-    setShuffle(false)
-    setCompulsory(false)
-    setMarks(5)
+  }
+
+  // Commit the current question to the list and open a fresh one.
+  const addNext = () => {
+    if (!draftHasText) {
+      questionRef.current?.focus()
+      return
+    }
+    setCommitted((c) => [...c, { id: newId(), text: questionText, type: responseType, marks }])
+    freshDraft()
     setTimeout(() => questionRef.current?.focus(), 0)
   }
 
-  return (
-    <div className="min-h-screen flex">
-      <IconRail active="exams" />
+  const typeLabel = (t) => (t === 'mc' ? 'Multiple choice' : 'Written answer')
 
-      <div className="flex-1 flex flex-col">
-        {/* Top bar — Preview is the only forward action; no Publish here. */}
-        <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 bg-white">
-          <nav className="flex items-center gap-2 text-sm text-neutral-400">
-            <span className="hover:text-neutral-700 cursor-pointer">Home</span>
-            <span>›</span>
-            <span className="hover:text-neutral-700 cursor-pointer">Exams</span>
-            <span>›</span>
-            <span className="text-neutral-700">{EXAM_NAME}</span>
-          </nav>
-          <div className="flex items-center gap-3">
-            <div className="relative hidden md:block">
-              <Icon path={icons.search} className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
-              <input
-                className="w-56 rounded-lg border border-neutral-200 bg-white pl-9 pr-3 py-2 text-sm placeholder:text-neutral-400 outline-none focus:border-neutral-400"
-                placeholder="Search resources…"
-              />
+  return (
+    <div className="min-h-screen bg-neutral-50">
+      {/* Top bar */}
+      <div className="sticky top-0 z-30 flex items-center justify-between px-6 py-3.5 bg-neutral-50/90 backdrop-blur border-b border-neutral-200">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => flow?.go('exams')}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-neutral-500 hover:bg-neutral-100"
+          >
+            <Icon path={icons.chevronLeft} className="w-5 h-5" />
+          </button>
+          <Logo />
+        </div>
+        <button
+          onClick={onPreview}
+          disabled={readyCount === 0}
+          className="rounded-full bg-neutral-900 px-5 py-2 text-sm font-medium text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          Continue · {readyCount}
+        </button>
+      </div>
+
+      <div className="mx-auto max-w-5xl px-6 py-10">
+        {/* Header */}
+        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500">Marking guide</p>
+        <h1 className="mt-1 text-4xl font-bold tracking-tight text-neutral-900">{EXAM_NAME}</h1>
+        <p className="mt-2 text-neutral-500">
+          Add your questions one at a time. Teach the AI exactly what earns each mark.
+        </p>
+
+        <div className="mt-8 grid lg:grid-cols-[300px_1fr] gap-8 items-start">
+          {/* YOUR QUESTIONS */}
+          <div>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Your questions</p>
+              {committed.length > 0 && (
+                <span className="text-xs text-neutral-400">{committedMarks} marks</span>
+              )}
             </div>
+
+            <div className="mt-3 space-y-2">
+              {committed.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-neutral-200 p-6 text-center text-sm text-neutral-400">
+                  Nothing added yet. Your questions will appear here as you build the guide.
+                </div>
+              ) : (
+                committed.map((q, i) => (
+                  <div key={q.id} className="flex items-start gap-3 rounded-2xl border border-neutral-200 bg-white px-4 py-3 shadow-sm">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-xs font-semibold text-neutral-600">
+                      {i + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-neutral-900">{firstWords(q.text, 6)}</p>
+                      <p className="text-xs text-neutral-400">{typeLabel(q.type)} · {q.marks} marks</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Editor card */}
+          <div className="rounded-3xl border border-neutral-200 bg-white p-7 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-neutral-900">Question {qNumber}</h2>
+              <span className="flex items-center gap-1.5 text-sm text-neutral-400">
+                <span className="h-2 w-2 rounded-full bg-neutral-900" /> Auto-saves to your list
+              </span>
+            </div>
+
+            {/* Question */}
+            <label className="mt-6 block text-sm font-medium text-neutral-700">Question</label>
+            <textarea
+              ref={questionRef}
+              rows={3}
+              value={questionText}
+              onChange={(e) => setQuestionText(e.target.value)}
+              placeholder="e.g. Explain why barium sulphate is insoluble in water."
+              className="mt-2 w-full resize-none rounded-2xl border border-neutral-200 bg-neutral-50/60 px-4 py-3.5 text-base text-neutral-900 placeholder:text-neutral-300 outline-none focus:border-neutral-400 focus:bg-white transition"
+            />
+
+            {/* Response type */}
+            <p className="mt-6 text-sm font-medium text-neutral-700">Response type</p>
+            <div className="mt-2 grid grid-cols-2 gap-3">
+              {[
+                ['text', 'Written answer', 'Graded against your guide'],
+                ['mc', 'Multiple choice', 'Mark the correct option'],
+              ].map(([key, title, sub]) => {
+                const sel = responseType === key
+                return (
+                  <button
+                    key={key}
+                    onClick={() => setResponseType(key)}
+                    className={`rounded-2xl border px-4 py-3.5 text-left transition ${
+                      sel ? 'border-neutral-900 bg-neutral-50 ring-1 ring-neutral-900' : 'border-neutral-200 hover:bg-neutral-50'
+                    }`}
+                  >
+                    <p className="text-sm font-semibold text-neutral-900">{title}</p>
+                    <p className="text-xs text-neutral-400">{sub}</p>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Written answer -> Marking guide */}
+            {responseType === 'text' && (
+              <div className="mt-6">
+                <p className="text-base font-bold text-neutral-900">Marking guide</p>
+                <p className="mt-0.5 text-sm text-neutral-500">
+                  The AI grades strictly against this and explains every score using it.
+                </p>
+                <textarea
+                  rows={5}
+                  value={markingGuide}
+                  onChange={(e) => setMarkingGuide(e.target.value)}
+                  placeholder="e.g. Award 2 marks for stating barium sulphate is insoluble; 2 marks for explaining the insoluble precipitate forms; 1 mark for a correct ionic equation. Be specific about what earns each mark."
+                  className="mt-3 w-full resize-none rounded-2xl border border-neutral-200 bg-neutral-50/60 px-4 py-3.5 text-base text-neutral-900 placeholder:text-neutral-300 outline-none focus:border-neutral-400 focus:bg-white transition"
+                />
+              </div>
+            )}
+
+            {/* MCQ -> Options */}
+            {responseType === 'mc' && (
+              <div className="mt-6">
+                <p className="text-base font-bold text-neutral-900">Options</p>
+                <p className="mt-0.5 text-sm text-neutral-500">
+                  Add the options and tap the circle to mark the correct one — that's the marking guide.
+                </p>
+                <div className="mt-3 space-y-2.5">
+                  {options.map((opt, idx) => (
+                    <div
+                      key={opt.id}
+                      className={`flex items-center gap-3 rounded-2xl border px-4 py-3 transition ${
+                        opt.correct ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setCorrect(opt.id)}
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition ${
+                          opt.correct
+                            ? 'border-neutral-900 bg-neutral-900 text-white'
+                            : 'border-neutral-300 text-transparent hover:border-neutral-400'
+                        }`}
+                        aria-label="Mark correct"
+                      >
+                        <Icon path={icons.check} className="w-3.5 h-3.5" stroke={3} />
+                      </button>
+                      <input
+                        ref={(el) => (optionRefs.current[opt.id] = el)}
+                        value={opt.text}
+                        onChange={(e) => updateOption(opt.id, e.target.value)}
+                        onKeyDown={(e) => onOptionKeyDown(e, idx)}
+                        placeholder={`Option ${String.fromCharCode(65 + idx)}`}
+                        className="flex-1 bg-transparent text-base text-neutral-900 placeholder:text-neutral-300 outline-none"
+                      />
+                      {options.length > 2 && (
+                        <button
+                          onClick={() => removeOption(opt.id)}
+                          className="text-neutral-300 hover:text-red-500 transition"
+                          aria-label="Remove option"
+                        >
+                          <Icon path={icons.x} className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => addOption()}
+                  className="mt-3 text-sm font-semibold text-neutral-700 hover:text-neutral-900"
+                >
+                  + Add option
+                </button>
+              </div>
+            )}
+
+            {/* Marks */}
+            <div className="mt-7 flex items-center gap-4">
+              <span className="text-sm font-medium text-neutral-700">Marks</span>
+              <div className="flex items-center rounded-xl border border-neutral-200 bg-neutral-50/60">
+                <button
+                  onClick={() => setMarks((m) => Math.max(1, m - 1))}
+                  className="px-3.5 py-2 text-lg text-neutral-500 hover:text-neutral-900"
+                >
+                  −
+                </button>
+                <span className="w-10 text-center text-sm font-semibold text-neutral-900">{marks}</span>
+                <button
+                  onClick={() => setMarks((m) => m + 1)}
+                  className="px-3.5 py-2 text-lg text-neutral-500 hover:text-neutral-900"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Add next question */}
             <button
-              onClick={onPreview}
-              className="flex items-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+              onClick={addNext}
+              className="mt-7 w-full flex items-center justify-center gap-2 rounded-2xl bg-neutral-900 py-3.5 text-sm font-semibold text-white hover:bg-black transition"
             >
-              <Icon path={icons.eye} className="w-4 h-4" /> Preview
+              <Icon path={icons.plus} className="w-4 h-4" /> Add next question
             </button>
           </div>
         </div>
 
-        <div className="flex-1 flex">
-          {/* Manual Editor panel */}
-          <div className="w-60 shrink-0 border-r border-neutral-200 bg-white p-4 flex flex-col">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-              Manual Editor
+        {/* Sticky continue bar */}
+        <div className="sticky bottom-5 mt-6">
+          <div className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white px-6 py-4 shadow-lg shadow-neutral-300/30">
+            <p className="text-sm text-neutral-600">
+              {readyCount} question{readyCount === 1 ? '' : 's'} · {totalMarks} marks ready. Add more, or move on
+              when you're done.
             </p>
-            <p className="mt-3 text-xs text-neutral-400">
-              Drafting · <span className="text-neutral-700 font-medium">{EXAM_NAME}</span>
-            </p>
-
-            {/* Source tabs */}
-            <div className="mt-4 grid grid-cols-3 rounded-lg border border-neutral-200 p-0.5 text-xs">
-              {['Manual', 'From bank', 'Upload'].map((t, i) => (
-                <button
-                  key={t}
-                  className={`rounded-md py-1.5 font-medium transition ${
-                    i === 0 ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-50'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            {/* Questions list — populates live as the teacher builds */}
-            <div className="mt-5 flex items-center justify-between">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Questions
-              </span>
-              <span className="text-[11px] text-neutral-400">{liveList.length} total</span>
-            </div>
-            <div className="mt-2 space-y-1.5">
-              {liveList.map((q) => (
-                <div
-                  key={q.id}
-                  className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-sm ${
-                    q.active
-                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900'
-                      : 'border-neutral-200 text-neutral-500'
-                  }`}
-                >
-                  <GripDots />
-                  <span className="font-medium text-xs text-neutral-400">Q{q.qno}</span>
-                  <span className="truncate">{firstWords(q.text)}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Secondary way to start a new question */}
             <button
-              onClick={saveAndAddNext}
-              className="mt-3 flex items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2 text-xs font-medium text-neutral-500 hover:bg-neutral-50 transition"
+              onClick={onPreview}
+              disabled={readyCount === 0}
+              className="rounded-full bg-neutral-900 px-6 py-2.5 text-sm font-semibold text-white hover:bg-black disabled:opacity-40 disabled:cursor-not-allowed transition"
             >
-              <Icon path={icons.plus} className="w-3.5 h-3.5" /> Add new block
-            </button>
-
-            {/* The single save concept: saves the whole exam draft */}
-            <button className="mt-auto rounded-lg border border-neutral-300 bg-white py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition">
-              Save exam draft
-            </button>
-          </div>
-
-          {/* Center editing area */}
-          <div className="flex-1 flex flex-col">
-            <div className="flex-1 px-8 py-6 overflow-y-auto">
-              {/* Formatting toolbar */}
-              <div className="flex items-center gap-1 text-neutral-500">
-                {[icons.image, icons.list].map((p, i) => (
-                  <button key={i} className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center">
-                    <Icon path={p} className="w-4 h-4" />
-                  </button>
-                ))}
-                <button className="w-8 h-8 rounded-md hover:bg-neutral-100 flex items-center justify-center text-sm font-semibold">
-                  Aa
-                </button>
-              </div>
-
-              {/* Question text — Enter inserts a line break (no advancing) */}
-              <textarea
-                ref={questionRef}
-                rows={2}
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                placeholder="Type your question here…"
-                className="mt-3 w-full resize-none bg-transparent text-xl font-medium text-neutral-900 placeholder:text-neutral-300 outline-none"
-              />
-
-              {/* Response type tabs */}
-              <p className="mt-6 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Response type
-              </p>
-              <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {RESPONSE_TYPES.map(([key, label, path, enabled]) => {
-                  const activeTab = responseType === key
-                  return (
-                    <button
-                      key={key}
-                      disabled={!enabled}
-                      onClick={() => enabled && setResponseType(key)}
-                      className={`relative flex items-center justify-center gap-2 rounded-lg border px-3 py-2.5 text-sm font-medium transition ${
-                        !enabled
-                          ? 'border-neutral-200 bg-neutral-50 text-neutral-300 cursor-not-allowed'
-                          : activeTab
-                          ? 'border-neutral-900 bg-white text-neutral-900 shadow-sm'
-                          : 'border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50'
-                      }`}
-                    >
-                      <Icon path={path} className="w-4 h-4" />
-                      {label}
-                      {!enabled && (
-                        <span className="absolute -top-2 right-1.5 rounded-full bg-neutral-200 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-neutral-500">
-                          Coming soon
-                        </span>
-                      )}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* MULTIPLE CHOICE */}
-              {responseType === 'mc' && (
-                <div className="mt-6">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                      Options
-                    </p>
-                    <label className="flex items-center gap-2 text-xs text-neutral-600 cursor-pointer">
-                      <Icon path={icons.shuffle} className="w-3.5 h-3.5 text-neutral-400" />
-                      Shuffle
-                      <button
-                        type="button"
-                        onClick={() => setShuffle((s) => !s)}
-                        className={`relative h-5 w-9 rounded-full transition ${
-                          shuffle ? 'bg-neutral-900' : 'bg-neutral-200'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                            shuffle ? 'left-[18px]' : 'left-0.5'
-                          }`}
-                        />
-                      </button>
-                    </label>
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {options.map((opt, idx) => (
-                      <div
-                        key={opt.id}
-                        className="flex items-center gap-3 rounded-lg border border-neutral-200 bg-white px-3 py-2.5"
-                      >
-                        <GripDots />
-                        <input
-                          ref={(el) => (optionRefs.current[opt.id] = el)}
-                          value={opt.text}
-                          onChange={(e) => updateOption(opt.id, e.target.value)}
-                          onKeyDown={(e) => onOptionKeyDown(e, idx)}
-                          placeholder="Option text"
-                          className="flex-1 bg-transparent text-sm text-neutral-900 placeholder:text-neutral-400 outline-none"
-                        />
-                        <label className="flex items-center gap-2 text-xs text-neutral-500">
-                          Correct answer
-                          <button
-                            type="button"
-                            onClick={() => setCorrect(opt.id)}
-                            className={`relative h-5 w-9 rounded-full transition ${
-                              opt.correct ? 'bg-emerald-500' : 'bg-neutral-200'
-                            }`}
-                          >
-                            <span
-                              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                                opt.correct ? 'left-[18px]' : 'left-0.5'
-                              }`}
-                            />
-                          </button>
-                        </label>
-                        <button
-                          onClick={() => removeOption(opt.id)}
-                          className="text-neutral-300 hover:text-red-500 transition"
-                        >
-                          <Icon path={icons.trash} className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-
-                  <button
-                    onClick={() => addOption()}
-                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-neutral-300 py-2.5 text-sm font-medium text-neutral-500 hover:bg-neutral-50 transition"
-                  >
-                    <Icon path={icons.plus} className="w-4 h-4" /> Add option
-                  </button>
-                  <p className="mt-2 text-xs text-neutral-400">
-                    Tip: press Enter inside an option to add the next one.
-                  </p>
-                </div>
-              )}
-
-              {/* TEXT */}
-              {responseType === 'text' && (
-                <div className="mt-6 space-y-5">
-                  <Field label="Marking guide">
-                    <textarea
-                      rows={5}
-                      value={markingGuide}
-                      onChange={(e) => setMarkingGuide(e.target.value)}
-                      placeholder="e.g. Award 2 marks for stating barium sulphate is insoluble; 2 marks for explaining the formation of an insoluble precipitate; 1 mark for a correct ionic equation."
-                      className={inputCls + ' resize-none'}
-                    />
-                    <p className="mt-1.5 text-xs text-neutral-400">
-                      Describe what a correct answer should include and how marks are
-                      awarded. The AI grades strictly against this.
-                    </p>
-                  </Field>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <Field label="Min characters">
-                      <input className={inputCls} defaultValue="50" />
-                    </Field>
-                    <Field label="Max characters">
-                      <input className={inputCls} defaultValue="500" />
-                    </Field>
-                    <Field label="Response length">
-                      <select className={inputCls + ' appearance-none'} defaultValue="short">
-                        <option value="short">Short answer</option>
-                        <option value="long">Long answer</option>
-                      </select>
-                    </Field>
-                  </div>
-                </div>
-              )}
-
-              {/* PRIMARY action — right under the answer area, where focus is */}
-              <div className="mt-8 border-t border-neutral-100 pt-5">
-                <button
-                  onClick={saveAndAddNext}
-                  className="flex items-center gap-2 rounded-lg bg-neutral-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-black transition"
-                >
-                  <Icon path={icons.plus} className="w-4 h-4" /> Save &amp; add next question
-                </button>
-                <p className="mt-2 text-xs text-neutral-400">
-                  Adds this question to the list and opens a fresh one. Questions
-                  auto-save into the list as you build them.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Right settings panel */}
-          <div className="w-72 shrink-0 border-l border-neutral-200 bg-white p-5 flex flex-col">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Question settings
-              </p>
-              <button className="text-[11px] text-neutral-400 hover:text-neutral-700">Reset</button>
-            </div>
-
-            <div className="mt-5">
-              <Field label="Marks">
-                <input className={inputCls} defaultValue="5" type="number" />
-              </Field>
-            </div>
-
-            <label className="mt-5 flex items-start gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={compulsory}
-                onChange={(e) => setCompulsory(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-300"
-              />
-              <span className="text-sm text-neutral-600">Mark question as compulsory</span>
-            </label>
-
-            <button
-              onClick={() => setShowBankModal(true)}
-              className="mt-6 flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 bg-white py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
-            >
-              <Icon path={icons.plus} className="w-4 h-4" /> Save to my question bank
+              Continue
             </button>
           </div>
         </div>
       </div>
-
-      {showBankModal && (
-        <SaveToBankModal banks={QUESTION_BANKS} onClose={() => setShowBankModal(false)} />
-      )}
     </div>
   )
 }
@@ -1053,15 +970,27 @@ const PREVIEW_Q = {
   ],
 }
 
-function Preview({ onExit, onPublish }) {
+function Preview({ onExit, onPublished }) {
+  const flow = useFlow()
   const [view, setView] = useState('teacher')
+  const [confirm, setConfirm] = useState(false)
+
+  React.useEffect(() => {
+    flow?.setStep('Step 3 of 5: Preview')
+  }, [])
+
+  const doPublish = () => {
+    flow?.freezeTimer()
+    flow?.setStep('Step 4 of 5: Published')
+    onPublished()
+  }
 
   const PreviewTopbar = (
     <div className="flex items-center justify-between px-6 py-3 border-b border-neutral-200 bg-white">
       <nav className="flex items-center gap-2 text-sm text-neutral-400">
-        <span className="hover:text-neutral-700 cursor-pointer">Home</span>
+        <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
         <span>›</span>
-        <span className="hover:text-neutral-700 cursor-pointer">Exams</span>
+        <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
         <span>›</span>
         <span className="text-neutral-700">
           {view === 'teacher' ? "Teacher's View" : 'Student Preview'}
@@ -1082,7 +1011,7 @@ function Preview({ onExit, onPublish }) {
           <Icon path={icons.eye} className="w-4 h-4" /> Exit preview
         </button>
         <button
-          onClick={onPublish}
+          onClick={() => setConfirm(true)}
           className="rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-black transition"
         >
           Publish exam
@@ -1123,6 +1052,31 @@ function Preview({ onExit, onPublish }) {
           )}
         </div>
       </div>
+
+      {confirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6">
+            <h2 className="text-base font-semibold text-neutral-900">Publish this exam?</h2>
+            <p className="mt-1.5 text-sm text-neutral-500">
+              Students will be able to join.
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                onClick={() => setConfirm(false)}
+                className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={doPublish}
+                className="rounded-lg bg-neutral-900 px-5 py-2 text-sm font-semibold text-white hover:bg-black transition"
+              >
+                Publish exam
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2217,47 +2171,375 @@ function BankQuestions({ bank, onBack, onAddToExam }) {
   )
 }
 
+/* ============================================================== MY EXAMS === */
+const MY_EXAMS = [
+  { id: 1, name: 'SS3 Chemistry Mid-Term', course: 'Chemistry · SS3', questions: 12, status: 'Draft' },
+  { id: 2, name: 'ECO 201 Test', course: 'Economics · 200 level', questions: 20, status: 'Published' },
+  { id: 3, name: 'JSS Mathematics Quiz', course: 'Mathematics · JSS2', questions: 15, status: 'Draft' },
+]
+
+function MyExams({ onCreate }) {
+  const flow = useFlow()
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Exams" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <span className="text-neutral-700">Exams</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 px-8 py-8 max-w-5xl mx-auto w-full">
+          <div className="flex items-start justify-between">
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">My Exams</h1>
+              <p className="mt-1 text-sm text-neutral-500">Create, draft and publish your exams.</p>
+            </div>
+            <button
+              onClick={onCreate}
+              className="rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-black transition"
+            >
+              Create exam
+            </button>
+          </div>
+
+          <div className="mt-7 space-y-2.5">
+            {MY_EXAMS.map((e) => (
+              <div
+                key={e.id}
+                className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-white px-5 py-4"
+              >
+                <span className="w-10 h-10 rounded-xl bg-neutral-100 text-neutral-500 flex items-center justify-center">
+                  <Icon path={icons.exams} className="w-5 h-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-neutral-900">{e.name}</p>
+                  <p className="text-xs text-neutral-400">{e.course} · {e.questions} questions</p>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                    e.status === 'Published'
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : 'bg-neutral-100 text-neutral-500'
+                  }`}
+                >
+                  {e.status}
+                </span>
+                <button
+                  onClick={() => flow?.go('editor')}
+                  className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                >
+                  Open
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+/* ============================================================== PUBLISHED === */
+function Published({ elapsedMs, questionCount, onInvite }) {
+  const flow = useFlow()
+  const fmt = (ms) => {
+    const s = Math.floor(ms / 1000)
+    return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
+  }
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Exams" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
+            <span>›</span>
+            <span className="text-neutral-700">{EXAM_NAME}</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 flex items-center justify-center px-8 py-10">
+          <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
+              <Icon path={icons.check} className="w-7 h-7" stroke={2.5} />
+            </div>
+            <h1 className="mt-5 text-xl font-semibold text-neutral-900">Exam published</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              {EXAM_NAME} is live. Students can now join.
+            </p>
+
+            <div className="mt-5 rounded-xl bg-neutral-50 border border-neutral-200 px-4 py-3 text-sm text-neutral-600">
+              Published in <span className="font-semibold text-neutral-900">{fmt(elapsedMs)}</span>
+              {' · '}{questionCount} questions · 5 steps
+            </div>
+
+            <button
+              onClick={onInvite}
+              className="mt-6 w-full rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-black transition"
+            >
+              Invite students
+            </button>
+            <button
+              onClick={() => flow?.go('exams')}
+              className="mt-2 w-full rounded-lg border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+            >
+              Back to my exams
+            </button>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+/* =========================================================== INVITE STUDENTS === */
+const PENDING_INVITES = [
+  ['Chiamaka Okafor', 'chiamaka.okafor@student.edu', 'Oct 24, 2023'],
+  ['Tunde Adeyemi', 'tunde.adeyemi@student.edu', 'Oct 24, 2023'],
+  ['Ngozi Eze', 'ngozi.eze@student.edu', 'Oct 23, 2023'],
+]
+
+function InviteStudents() {
+  const flow = useFlow()
+  const [copied, setCopied] = useState(false)
+  const link = 'proctex.app/join/ss3-chem-7k9x2'
+
+  React.useEffect(() => {
+    flow?.setStep('Step 5 of 5: Invite students')
+  }, [])
+
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Students" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <button onClick={() => flow?.go('exams')} className="hover:text-neutral-700">Exams</button>
+            <span>›</span>
+            <span className="text-neutral-700">Invite students</span>
+          </nav>
+        </CrumbTopbar>
+
+        <div className="flex-1 px-8 py-8 max-w-4xl mx-auto w-full">
+          <h1 className="text-2xl font-semibold tracking-tight text-neutral-900">Invite students</h1>
+          <p className="mt-1 text-sm text-neutral-500">{EXAM_NAME}</p>
+
+          {/* HERO — magic link */}
+          <div className="mt-6 rounded-2xl border border-neutral-900/10 bg-white p-6 shadow-sm ring-1 ring-neutral-900/5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+              Share link
+            </p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex-1 flex items-center rounded-lg border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm text-neutral-700">
+                {link}
+              </div>
+              <button
+                onClick={() => {
+                  setCopied(true)
+                  setTimeout(() => setCopied(false), 1500)
+                }}
+                className="shrink-0 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-black transition"
+              >
+                {copied ? 'Copied!' : 'Copy link'}
+              </button>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              <span className="text-[11px] font-medium uppercase tracking-wide text-neutral-400">Link expiry</span>
+              <select className="rounded-lg border border-neutral-200 bg-white px-2.5 py-1.5 text-sm outline-none focus:border-neutral-400" defaultValue="24">
+                <option value="24">24 hours</option>
+                <option value="72">72 hours</option>
+                <option value="168">7 days</option>
+                <option value="0">No expiry</option>
+              </select>
+            </div>
+            <p className="mt-3 text-sm text-neutral-500">
+              Share this link with your students. They join by clicking it — no account
+              needed.
+            </p>
+          </div>
+
+          {/* SECONDARY — email */}
+          <div className="mt-5 rounded-2xl border border-neutral-200 bg-white p-6">
+            <p className="text-sm font-semibold text-neutral-800">Or send the link by email</p>
+            <textarea
+              rows={3}
+              placeholder="Enter student emails, comma-separated or one per line…"
+              className={inputCls + ' mt-3 resize-none'}
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <button className="flex items-center gap-2 text-sm font-medium text-neutral-600 hover:text-neutral-900">
+                <Icon path={icons.upload} className="w-4 h-4" /> Bulk upload CSV
+              </button>
+              <button className="rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition">
+                Send invitations
+              </button>
+            </div>
+          </div>
+
+          {/* Pending invitations */}
+          <div className="mt-7 flex items-center justify-between">
+            <h2 className="text-base font-semibold text-neutral-900">Pending invitations</h2>
+            <span className="rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-500">
+              {PENDING_INVITES.length} pending
+            </span>
+          </div>
+          <div className="mt-3 rounded-2xl border border-neutral-200 bg-white overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-[11px] uppercase tracking-wide text-neutral-400 border-b border-neutral-100">
+                  <th className="px-5 py-3 font-medium">Student name / email</th>
+                  <th className="px-5 py-3 font-medium">Status</th>
+                  <th className="px-5 py-3 font-medium">Sent date</th>
+                  <th className="px-5 py-3 font-medium text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {PENDING_INVITES.map(([name, email, date]) => (
+                  <tr key={email}>
+                    <td className="px-5 py-3.5">
+                      <p className="font-medium text-neutral-900">{name}</p>
+                      <p className="text-xs text-neutral-400">{email}</p>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-600">
+                        Awaiting join
+                      </span>
+                    </td>
+                    <td className="px-5 py-3.5 text-neutral-500">{date}</td>
+                    <td className="px-5 py-3.5 text-right">
+                      <button className="text-sm font-medium text-neutral-700 hover:text-neutral-900">Resend</button>
+                      <button className="ml-4 text-sm font-medium text-red-500 hover:text-red-600">Remove</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
+/* ============================================================ RESULTS (stub) === */
+function ResultsPlaceholder() {
+  const flow = useFlow()
+  return (
+    <div className="min-h-screen flex">
+      <Sidebar active="Results" />
+      <main className="flex-1 flex flex-col">
+        <CrumbTopbar>
+          <nav className="flex items-center gap-2 text-sm text-neutral-400">
+            <button onClick={() => flow?.go('dashboard')} className="hover:text-neutral-700">Home</button>
+            <span>›</span>
+            <span className="text-neutral-700">Results</span>
+          </nav>
+        </CrumbTopbar>
+        <div className="flex-1 flex items-center justify-center text-center px-8">
+          <div>
+            <div className="mx-auto w-12 h-12 rounded-xl bg-neutral-100 text-neutral-400 flex items-center justify-center">
+              <Icon path={icons.results} className="w-6 h-6" />
+            </div>
+            <h1 className="mt-4 text-lg font-semibold text-neutral-900">Results</h1>
+            <p className="mt-1 text-sm text-neutral-500">
+              Graded results will appear here once students submit.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  )
+}
+
 /* ================================================================== APP === */
 export default function App() {
   const [screen, setScreen] = useState('signup')
   const [openBank, setOpenBank] = useState(QUESTION_BANKS[0])
 
+  // Timer / step counter shared across the publish flow.
+  const [startTs, setStartTs] = useState(null)
+  const [running, setRunning] = useState(false)
+  const [elapsedMs, setElapsedMs] = useState(0)
+  const [frozen, setFrozen] = useState(false)
+  const [step, setStep] = useState('Step 1 of 5: Exam setup')
+  const [questionCount, setQuestionCount] = useState(0)
+
+  React.useEffect(() => {
+    if (!running || startTs == null) return
+    const id = setInterval(() => setElapsedMs(Date.now() - startTs), 250)
+    return () => clearInterval(id)
+  }, [running, startTs])
+
+  const flow = {
+    screen,
+    go: (s) => s && setScreen(s),
+    setStep,
+    questionCount,
+    setQuestionCount,
+    startTimer: () => {
+      if (startTs == null && !frozen) {
+        setStartTs(Date.now())
+        setRunning(true)
+      }
+    },
+    freezeTimer: () => {
+      setRunning(false)
+      setFrozen(true)
+    },
+  }
+
   return (
-    <div className="font-sans text-neutral-900">
-      {screen === 'signup' && <SignUp onCreate={() => setScreen('dashboard')} />}
-      {screen === 'dashboard' && (
-        <Dashboard
-          onBeginDrafting={() => setScreen('exam')}
-          onBulkUpload={() => setScreen('bulk')}
-          onQuestionBanks={() => setScreen('banks')}
-        />
-      )}
-      {screen === 'bulk' && (
-        <BulkImport onExit={() => setScreen('dashboard')} onAddToExam={() => setScreen('editor')} />
-      )}
-      {screen === 'exam' && (
-        <CreateExam onBack={() => setScreen('dashboard')} onContinue={() => setScreen('editor')} />
-      )}
-      {screen === 'editor' && <QuestionEditor onPreview={() => setScreen('preview')} />}
-      {screen === 'preview' && (
-        <Preview onExit={() => setScreen('editor')} onPublish={() => setScreen('editor')} />
-      )}
-      {screen === 'banks' && (
-        <QuestionBanks
-          onExit={() => setScreen('dashboard')}
-          onOpenBank={(b) => {
-            setOpenBank(b)
-            setScreen('bankView')
-          }}
-        />
-      )}
-      {screen === 'bankView' && (
-        <BankQuestions
-          bank={openBank}
-          onBack={() => setScreen('banks')}
-          onAddToExam={() => setScreen('editor')}
-        />
-      )}
-    </div>
+    <FlowCtx.Provider value={flow}>
+      <div className="font-sans text-neutral-900">
+        {screen === 'signup' && <SignUp onCreate={() => setScreen('dashboard')} />}
+        {screen === 'dashboard' && (
+          <Dashboard
+            onBeginDrafting={() => setScreen('exam')}
+            onBulkUpload={() => setScreen('bulk')}
+            onQuestionBanks={() => setScreen('banks')}
+          />
+        )}
+        {screen === 'exams' && <MyExams onCreate={() => setScreen('exam')} />}
+        {screen === 'bulk' && (
+          <BulkImport onExit={() => setScreen('dashboard')} onAddToExam={() => setScreen('editor')} />
+        )}
+        {screen === 'exam' && <CreateExam onContinue={() => setScreen('editor')} />}
+        {screen === 'editor' && <QuestionEditor onPreview={() => setScreen('preview')} />}
+        {screen === 'preview' && (
+          <Preview onExit={() => setScreen('editor')} onPublished={() => setScreen('published')} />
+        )}
+        {screen === 'published' && (
+          <Published
+            elapsedMs={elapsedMs}
+            questionCount={questionCount}
+            onInvite={() => setScreen('invite')}
+          />
+        )}
+        {screen === 'invite' && <InviteStudents />}
+        {screen === 'banks' && (
+          <QuestionBanks
+            onExit={() => setScreen('dashboard')}
+            onOpenBank={(b) => {
+              setOpenBank(b)
+              setScreen('bankView')
+            }}
+          />
+        )}
+        {screen === 'bankView' && (
+          <BankQuestions
+            bank={openBank}
+            onBack={() => setScreen('banks')}
+            onAddToExam={() => setScreen('editor')}
+          />
+        )}
+        {screen === 'results' && <ResultsPlaceholder />}
+      </div>
+    </FlowCtx.Provider>
   )
 }
