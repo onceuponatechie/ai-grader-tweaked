@@ -9,6 +9,9 @@ import React, { useState } from 'react'
  */
 
 const USER_NAME = 'Ayo'
+// Brand name lives in one place — swap this when the new name lands.
+const APP_NAME = 'Proctex'
+const JOIN_LINK = `${APP_NAME.toLowerCase()}.app/join/ss3-chem-7k9x2`
 
 /* ----------------------------------------------------------------- icons -- */
 const Icon = ({ path, className = 'w-4 h-4', stroke = 1.6 }) => (
@@ -82,7 +85,7 @@ const useFlow = () => React.useContext(FlowCtx)
 const NAV_TARGET = {
   Dashboard: 'dashboard',
   Exams: 'exams',
-  Questions: 'banks',
+  'Question Banks': 'banks',
   Students: 'invite',
   Results: 'results',
 }
@@ -94,8 +97,8 @@ const SCREEN_LABEL = {
   editor: 'Exams',
   preview: 'Exams',
   published: 'Exams',
-  banks: 'Questions',
-  bankView: 'Questions',
+  banks: 'Question Banks',
+  bankView: 'Question Banks',
   bulk: 'Exams',
   invite: 'Students',
   results: 'Results',
@@ -123,7 +126,7 @@ const MicrosoftMark = () => (
 const Logo = () => (
   <div className="flex items-center gap-2">
     <div className="w-6 h-6 rounded-full bg-gradient-to-br from-neutral-700 to-black" />
-    <span className="font-semibold tracking-tight text-neutral-900">Proctex</span>
+    <span className="font-semibold tracking-tight text-neutral-900">{APP_NAME}</span>
   </div>
 )
 
@@ -161,7 +164,7 @@ function SignUp({ onCreate }) {
               Grade a full class in minutes.
             </p>
             <p className="mt-2 text-sm text-neutral-600">
-              Set up your exam once, let Proctex handle the grading, and spend
+              Set up your exam once, let {APP_NAME} handle the grading, and spend
               your time teaching instead.
             </p>
           </div>
@@ -247,7 +250,7 @@ function Sidebar({ active = 'Dashboard' }) {
   const nav = [
     ['Dashboard', icons.dashboard],
     ['Exams', icons.exams],
-    ['Questions', icons.questions],
+    ['Question Banks', icons.bank],
     ['Students', icons.students],
     ['Results', icons.results],
   ]
@@ -287,10 +290,10 @@ function Sidebar({ active = 'Dashboard' }) {
           <div className="h-1.5 w-full rounded-full bg-neutral-100 overflow-hidden">
             <div className="h-full w-1/2 rounded-full bg-neutral-900" />
           </div>
-          <p className="mt-3 text-sm font-medium text-neutral-900">Trial plan</p>
-          <p className="text-xs text-neutral-500">Renews when you upgrade.</p>
+          <p className="mt-3 text-sm font-medium text-neutral-900">Free credits</p>
+          <p className="text-xs text-neutral-500">On us, for a limited time.</p>
           <button className="mt-3 w-full rounded-lg bg-neutral-900 py-2 text-xs font-medium text-white hover:bg-black transition">
-            Buy credits
+            Get more credits
           </button>
         </div>
       </div>
@@ -329,6 +332,7 @@ function Topbar() {
 
 /* ============================================================ DASHBOARD === */
 function Dashboard({ onBeginDrafting, onBulkUpload, onQuestionBanks }) {
+  const flow = useFlow()
   return (
     <div className="min-h-screen flex">
       <Sidebar active="Dashboard" />
@@ -342,63 +346,105 @@ function Dashboard({ onBeginDrafting, onBulkUpload, onQuestionBanks }) {
             Create an exam, let AI grade it, and get your time back.
           </p>
 
-          {/* All three options on one horizontal line; hierarchy via emphasis */}
+          {/* One primary path; import options demoted to quiet side tiles */}
           <div className="mt-8 grid gap-5 lg:grid-cols-3 items-stretch">
-            {/* PRIMARY — emphasised: black icon tile + black button + ring */}
-            <div className="rounded-2xl border border-neutral-900/10 bg-white p-6 flex flex-col shadow-sm ring-1 ring-neutral-900/5">
-              <div className="w-10 h-10 rounded-xl bg-neutral-900 text-white flex items-center justify-center">
+            {/* HERO — the single primary action */}
+            <div className="lg:col-span-2 rounded-2xl border border-neutral-900/10 bg-white p-7 flex flex-col shadow-sm ring-1 ring-neutral-900/5">
+              <div className="w-11 h-11 rounded-xl bg-neutral-900 text-white flex items-center justify-center">
                 <Icon path={icons.pen} className="w-5 h-5" />
               </div>
-              <h2 className="mt-4 text-lg font-semibold text-neutral-900">Manual Input</h2>
-              <p className="mt-1.5 text-sm text-neutral-500">
-                Write and organize exam questions directly.
+              <h2 className="mt-4 text-xl font-semibold text-neutral-900">Create an exam</h2>
+              <p className="mt-1.5 text-sm text-neutral-500 max-w-md">
+                Write your questions, add your marking guide, and publish. The AI
+                grades every answer against your guide — you review and approve.
               </p>
-              <div className="mt-auto pt-5">
+              <div className="mt-auto pt-6">
                 <button
                   onClick={onBeginDrafting}
-                  className="w-full rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-medium text-white hover:bg-black transition"
+                  className="rounded-lg bg-neutral-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-black transition"
                 >
-                  Begin drafting
+                  Create exam
                 </button>
+                <span className="ml-3 text-xs text-neutral-400">
+                  Details → Questions → Publish. Three steps.
+                </span>
               </div>
             </div>
 
-            {/* SECONDARY — muted, outline button */}
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-6 flex flex-col">
-              <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center">
-                <Icon path={icons.upload} className="w-[18px] h-[18px]" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-neutral-800">Bulk Upload</h3>
-              <p className="mt-1.5 text-sm text-neutral-500">
-                Import questions from Excel, CSV, or JSON.
-              </p>
-              <div className="mt-auto pt-5">
-                <button
-                  onClick={onBulkUpload}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
-                >
-                  Upload file
-                </button>
-              </div>
+            {/* Quiet side tiles — ways to bring questions in, not separate journeys */}
+            <div className="flex flex-col gap-5">
+              <button
+                onClick={onBulkUpload}
+                className="flex-1 rounded-2xl border border-neutral-200 bg-neutral-50/60 p-5 text-left hover:bg-neutral-50 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-lg bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center">
+                    <Icon path={icons.upload} className="w-4 h-4" />
+                  </span>
+                  <span className="text-sm font-semibold text-neutral-800">Bulk upload</span>
+                </div>
+                <p className="mt-2.5 text-xs text-neutral-500">
+                  Import questions from Excel, CSV, or JSON.
+                </p>
+              </button>
+              <button
+                onClick={onQuestionBanks}
+                className="flex-1 rounded-2xl border border-neutral-200 bg-neutral-50/60 p-5 text-left hover:bg-neutral-50 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="w-9 h-9 rounded-lg bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center">
+                    <Icon path={icons.bank} className="w-4 h-4" />
+                  </span>
+                  <span className="text-sm font-semibold text-neutral-800">Question banks</span>
+                </div>
+                <p className="mt-2.5 text-xs text-neutral-500">
+                  Reuse questions you've saved before.
+                </p>
+              </button>
             </div>
+          </div>
 
-            {/* TERTIARY — Question Banks, now enabled */}
-            <div className="rounded-2xl border border-neutral-200 bg-neutral-50/60 p-6 flex flex-col">
-              <div className="w-10 h-10 rounded-xl bg-white border border-neutral-200 text-neutral-600 flex items-center justify-center">
-                <Icon path={icons.bank} className="w-[18px] h-[18px]" />
-              </div>
-              <h3 className="mt-4 text-lg font-semibold text-neutral-800">Question Banks</h3>
-              <p className="mt-1.5 text-sm text-neutral-500">
-                Reuse saved questions anytime.
-              </p>
-              <div className="mt-auto pt-5">
-                <button
-                  onClick={onQuestionBanks}
-                  className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+          {/* Jump back in */}
+          <div className="mt-9">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-neutral-900">Jump back in</h2>
+              <button
+                onClick={() => flow?.go('exams')}
+                className="text-xs font-medium text-neutral-500 hover:text-neutral-900"
+              >
+                View all exams
+              </button>
+            </div>
+            <div className="mt-3 space-y-2.5">
+              {MY_EXAMS.slice(0, 2).map((e) => (
+                <div
+                  key={e.id}
+                  className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-white px-5 py-3.5"
                 >
-                  Open
-                </button>
-              </div>
+                  <span className="w-9 h-9 rounded-lg bg-neutral-100 text-neutral-500 flex items-center justify-center">
+                    <Icon path={icons.exams} className="w-4 h-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-neutral-900">{e.name}</p>
+                    <p className="text-xs text-neutral-400">{e.course} · {e.questions} questions</p>
+                  </div>
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${
+                      e.status === 'Published'
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : 'bg-neutral-100 text-neutral-500'
+                    }`}
+                  >
+                    {e.status}
+                  </span>
+                  <button
+                    onClick={() => flow?.go('editor')}
+                    className="rounded-lg border border-neutral-300 bg-white px-3.5 py-1.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                  >
+                    Open
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -433,7 +479,7 @@ function CreateExam({ onContinue }) {
   const [optionalOpen, setOptionalOpen] = useState(false) // collapsed by default
 
   React.useEffect(() => {
-    flow?.setStep('Step 1 of 5: Exam setup')
+    flow?.setStep('Step 1 of 3: Exam details')
   }, [])
 
   return (
@@ -474,22 +520,9 @@ function CreateExam({ onContinue }) {
                 <input className={inputCls} placeholder="Enter course name or code" />
               </Field>
 
-              <Field label="Institution" required>
-                <input className={inputCls} placeholder="e.g. University of Lagos" />
-              </Field>
-
               <Field label="Examination duration" required>
                 <DurationButtons />
               </Field>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Field label="Start date" required>
-                  <input className={inputCls} type="date" />
-                </Field>
-                <Field label="Time" required>
-                  <input className={inputCls} type="time" defaultValue="10:30" />
-                </Field>
-              </div>
             </div>
 
             {/* Optional settings — collapsed by default */}
@@ -501,7 +534,7 @@ function CreateExam({ onContinue }) {
                 <div>
                   <p className="text-sm font-semibold text-neutral-900">Optional settings</p>
                   <p className="text-xs text-neutral-400">
-                    Late join, instructions, and cover image.
+                    Schedule, late join, instructions, and cover image.
                   </p>
                 </div>
                 <Icon
@@ -514,6 +547,20 @@ function CreateExam({ onContinue }) {
 
               {optionalOpen && (
                 <div className="px-6 pb-6 pt-6 space-y-5 border-t border-neutral-100">
+                  <div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <Field label="Start date">
+                        <input className={inputCls} type="date" />
+                      </Field>
+                      <Field label="Time">
+                        <input className={inputCls} type="time" />
+                      </Field>
+                    </div>
+                    <p className="mt-1.5 text-xs text-neutral-400">
+                      Leave empty to open the exam as soon as you publish it.
+                    </p>
+                  </div>
+
                   <Field label="Late join window">
                     <input className={inputCls} defaultValue="10 minutes" />
                   </Field>
@@ -554,7 +601,7 @@ function CreateExam({ onContinue }) {
               </button>
             </div>
             <p className="mt-3 text-xs text-neutral-400">
-              You just need a title, course, and duration to continue.
+              A title, course, and duration is all you need to continue.
             </p>
           </div>
         </div>
@@ -569,7 +616,7 @@ function IconRail({ active = 'exams' }) {
   const items = [
     ['dashboard', icons.dashboard, 'dashboard'],
     ['exams', icons.exams, 'exams'],
-    ['questions', icons.questions, 'banks'],
+    ['questions', icons.bank, 'banks'],
     ['students', icons.students, 'invite'],
     ['results', icons.results, 'results'],
   ]
@@ -596,15 +643,6 @@ function IconRail({ active = 'exams' }) {
   )
 }
 
-const Tooltip = ({ text, children }) => (
-  <span className="relative group inline-flex">
-    {children}
-    <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-neutral-900 px-2.5 py-1 text-[11px] font-normal text-white opacity-0 shadow-lg transition group-hover:opacity-100">
-      {text}
-    </span>
-  </span>
-)
-
 /* ========================================================= QUESTION EDITOR === */
 const RESPONSE_TYPES = [
   ['mc', 'Multiple Choice', icons.questions, true],
@@ -626,8 +664,6 @@ function QuestionEditor({ onPreview }) {
   const [committed, setCommitted] = useState([])
   const [questionText, setQuestionText] = useState('')
   const [responseType, setResponseType] = useState('mc')
-  const [shuffle, setShuffle] = useState(false)
-  const [compulsory, setCompulsory] = useState(false)
   const [marks, setMarks] = useState(5)
   const [showBankModal, setShowBankModal] = useState(false)
   const [markingGuide, setMarkingGuide] = useState('')
@@ -647,7 +683,7 @@ function QuestionEditor({ onPreview }) {
   // The timer starts when the question editor opens (start of question 1).
   React.useEffect(() => {
     flow?.startTimer()
-    flow?.setStep('Step 2 of 5: Adding questions')
+    flow?.setStep('Step 2 of 3: Questions')
   }, [])
 
   React.useEffect(() => {
@@ -710,8 +746,6 @@ function QuestionEditor({ onPreview }) {
       { id: newId(), text: '', correct: false },
     ])
     setMarkingGuide('')
-    setShuffle(false)
-    setCompulsory(false)
     setMarks(5)
     setTimeout(() => questionRef.current?.focus(), 0)
   }
@@ -757,11 +791,16 @@ function QuestionEditor({ onPreview }) {
               Drafting · <span className="text-neutral-700 font-medium">{EXAM_NAME}</span>
             </p>
 
-            {/* Source tabs */}
+            {/* Source tabs — the only home of the import paths */}
             <div className="mt-4 grid grid-cols-3 rounded-lg border border-neutral-200 p-0.5 text-xs">
-              {['Manual', 'From bank', 'Upload'].map((t, i) => (
+              {[
+                ['Manual', null],
+                ['From bank', 'banks'],
+                ['Upload', 'bulk'],
+              ].map(([t, target], i) => (
                 <button
                   key={t}
+                  onClick={() => target && flow?.go(target)}
                   className={`rounded-md py-1.5 font-medium transition ${
                     i === 0 ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-neutral-50'
                   }`}
@@ -825,14 +864,28 @@ function QuestionEditor({ onPreview }) {
               </div>
 
               {/* Question text — Enter inserts a line break (no advancing) */}
-              <textarea
-                ref={questionRef}
-                rows={2}
-                value={questionText}
-                onChange={(e) => setQuestionText(e.target.value)}
-                placeholder="Type your question here…"
-                className="mt-3 w-full resize-none bg-transparent text-xl font-medium text-neutral-900 placeholder:text-neutral-300 outline-none"
-              />
+              <div className="mt-3 flex items-start gap-4">
+                <textarea
+                  ref={questionRef}
+                  rows={2}
+                  value={questionText}
+                  onChange={(e) => setQuestionText(e.target.value)}
+                  placeholder="Type your question here…"
+                  className="flex-1 resize-none bg-transparent text-xl font-medium text-neutral-900 placeholder:text-neutral-300 outline-none"
+                />
+                <label className="shrink-0 w-24">
+                  <span className="block text-[11px] font-medium uppercase tracking-wide text-neutral-500 mb-1.5">
+                    Marks
+                  </span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={marks}
+                    onChange={(e) => setMarks(Number(e.target.value))}
+                    className={inputCls}
+                  />
+                </label>
+              </div>
 
               {/* Response type tabs */}
               <p className="mt-6 text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
@@ -869,28 +922,9 @@ function QuestionEditor({ onPreview }) {
               {/* MULTIPLE CHOICE */}
               {responseType === 'mc' && (
                 <div className="mt-6">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                      Options
-                    </p>
-                    <label className="flex items-center gap-2 text-xs text-neutral-600 cursor-pointer">
-                      <Icon path={icons.shuffle} className="w-3.5 h-3.5 text-neutral-400" />
-                      Shuffle
-                      <button
-                        type="button"
-                        onClick={() => setShuffle((s) => !s)}
-                        className={`relative h-5 w-9 rounded-full transition ${
-                          shuffle ? 'bg-neutral-900' : 'bg-neutral-200'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${
-                            shuffle ? 'left-[18px]' : 'left-0.5'
-                          }`}
-                        />
-                      </button>
-                    </label>
-                  </div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                    Options
+                  </p>
 
                   <div className="mt-3 space-y-2">
                     {options.map((opt, idx) => (
@@ -966,51 +1000,26 @@ function QuestionEditor({ onPreview }) {
 
               {/* PRIMARY action — right under the answer area, where focus is */}
               <div className="mt-8 border-t border-neutral-100 pt-5">
-                <button
-                  onClick={saveAndAddNext}
-                  className="flex items-center gap-2 rounded-lg bg-neutral-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-black transition"
-                >
-                  <Icon path={icons.plus} className="w-4 h-4" /> Save &amp; add next question
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={saveAndAddNext}
+                    className="flex items-center gap-2 rounded-lg bg-neutral-900 px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-black transition"
+                  >
+                    <Icon path={icons.plus} className="w-4 h-4" /> Save &amp; add next question
+                  </button>
+                  <button
+                    onClick={() => setShowBankModal(true)}
+                    className="flex items-center gap-1.5 rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
+                  >
+                    <Icon path={icons.bank} className="w-4 h-4" /> Save to bank
+                  </button>
+                </div>
                 <p className="mt-2 text-xs text-neutral-400">
                   Adds this question to the list and opens a fresh one. Questions
                   auto-save into the list as you build them.
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Right settings panel */}
-          <div className="w-72 shrink-0 border-l border-neutral-200 bg-white p-5 flex flex-col">
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Question settings
-              </p>
-              <button className="text-[11px] text-neutral-400 hover:text-neutral-700">Reset</button>
-            </div>
-
-            <div className="mt-5">
-              <Field label="Marks">
-                <input className={inputCls} defaultValue="5" type="number" />
-              </Field>
-            </div>
-
-            <label className="mt-5 flex items-start gap-2.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={compulsory}
-                onChange={(e) => setCompulsory(e.target.checked)}
-                className="mt-0.5 h-4 w-4 rounded border-neutral-300 text-neutral-900 focus:ring-neutral-300"
-              />
-              <span className="text-sm text-neutral-600">Mark question as compulsory</span>
-            </label>
-
-            <button
-              onClick={() => setShowBankModal(true)}
-              className="mt-6 flex items-center justify-center gap-1.5 rounded-lg border border-neutral-300 bg-white py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
-            >
-              <Icon path={icons.plus} className="w-4 h-4" /> Save to my question bank
-            </button>
           </div>
         </div>
       </div>
@@ -1051,12 +1060,11 @@ function Preview({ onExit, onPublished }) {
   const [confirm, setConfirm] = useState(false)
 
   React.useEffect(() => {
-    flow?.setStep('Step 3 of 5: Preview')
+    flow?.setStep('Step 3 of 3: Publish & share')
   }, [])
 
   const doPublish = () => {
     flow?.freezeTimer()
-    flow?.setStep('Step 4 of 5: Published')
     onPublished()
   }
 
@@ -1133,7 +1141,7 @@ function Preview({ onExit, onPublished }) {
           <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6">
             <h2 className="text-base font-semibold text-neutral-900">Publish this exam?</h2>
             <p className="mt-1.5 text-sm text-neutral-500">
-              Students will be able to join.
+              You'll get a join link to share with students right after.
             </p>
             <div className="mt-5 flex justify-end gap-3">
               <button
@@ -1157,38 +1165,20 @@ function Preview({ onExit, onPublished }) {
 }
 
 function TeacherView({ toggle }) {
-  const [aiHint, setAiHint] = useState(true)
-  const [pointValues, setPointValues] = useState(true)
-  const [showAnswers, setShowAnswers] = useState(true)
-
-  const toggles = [
-    ['AI Grading Hint', 'Show how the AI will grade this question', aiHint, setAiHint],
-    ['Point Values', 'Show marks for each question', pointValues, setPointValues],
-    ['Show Answers', 'Reveal correct answers in this preview', showAnswers, setShowAnswers],
-  ]
+  // Teacher's view always shows answers, marks and the AI grading note —
+  // no toggles to fiddle with before publishing.
+  const pointValues = true
+  const showAnswers = true
+  const aiHint = true
 
   return (
     <>
       <div className="w-64 shrink-0 border-r border-neutral-200 bg-white p-4">
         {toggle}
-        <div className="mt-5 space-y-1">
-          {toggles.map(([label, tip, val, set]) => (
-            <div key={label} className="flex items-center justify-between rounded-lg px-2 py-2 hover:bg-neutral-50">
-              <Tooltip text={tip}>
-                <span className="flex items-center gap-1.5 text-sm text-neutral-700">
-                  {label}
-                  <Icon path={icons.info} className="w-3.5 h-3.5 text-neutral-300" />
-                </span>
-              </Tooltip>
-              <button
-                onClick={() => set((v) => !v)}
-                className={`relative h-5 w-9 rounded-full transition ${val ? 'bg-emerald-500' : 'bg-neutral-200'}`}
-              >
-                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition ${val ? 'left-[18px]' : 'left-0.5'}`} />
-              </button>
-            </div>
-          ))}
-        </div>
+        <p className="mt-4 rounded-lg bg-neutral-50 border border-neutral-100 px-3 py-2.5 text-xs text-neutral-500">
+          You're seeing answers, marks and AI grading notes. Students never see
+          these — switch to Student's View to check.
+        </p>
 
         <div className="mt-5 rounded-xl border border-neutral-200 p-3">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Drafted exam</p>
@@ -2040,7 +2030,7 @@ function SaveToBankModal({ banks, onClose }) {
 function QuestionBanks({ onOpenBank, onExit }) {
   return (
     <div className="min-h-screen flex">
-      <Sidebar active="Questions" />
+      <Sidebar active="Question Banks" />
       <main className="flex-1 flex flex-col">
         <CrumbTopbar>
           <nav className="flex items-center gap-2 text-sm text-neutral-400">
@@ -2119,7 +2109,7 @@ function BankQuestions({ bank, onBack, onAddToExam }) {
 
   return (
     <div className="min-h-screen flex">
-      <Sidebar active="Questions" />
+      <Sidebar active="Question Banks" />
       <main className="flex-1 flex flex-col">
         <CrumbTopbar>
           <nav className="flex items-center gap-2 text-sm text-neutral-400">
@@ -2160,9 +2150,9 @@ function BankQuestions({ bank, onBack, onAddToExam }) {
             </div>
           </div>
 
-          <div className="mt-7 grid lg:grid-cols-3 gap-6">
+          <div className="mt-7 max-w-3xl">
             {/* Question list */}
-            <div className="lg:col-span-2 space-y-2.5">
+            <div className="space-y-2.5">
               {BANK_QUESTIONS.map((q) => (
                 <div
                   key={q.n}
@@ -2200,27 +2190,6 @@ function BankQuestions({ bank, onBack, onAddToExam }) {
               ))}
             </div>
 
-            {/* Quick add from repository (optional, simple) */}
-            <div className="rounded-2xl border border-neutral-200 bg-white p-5 h-fit">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                Quick add from repository
-              </p>
-              <div className="mt-3 space-y-3">
-                {[
-                  ['Properties of Group 1 metals', 'CHM-204 · used in 4 banks'],
-                  ['Balancing redox equations', 'CHM-181 · used in 9 banks'],
-                  ['Periodic trends across Period 3', 'CHM-205 · used in 2 banks'],
-                ].map(([t, meta]) => (
-                  <button key={t} className="block w-full text-left rounded-lg px-2 py-1.5 hover:bg-neutral-50">
-                    <p className="text-sm text-neutral-800">{t}</p>
-                    <p className="text-xs text-neutral-400">{meta}</p>
-                  </button>
-                ))}
-              </div>
-              <button className="mt-4 w-full rounded-lg border border-neutral-300 py-2 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition">
-                View all repository
-              </button>
-            </div>
           </div>
         </div>
 
@@ -2320,6 +2289,7 @@ function MyExams({ onCreate }) {
 /* ============================================================== PUBLISHED === */
 function Published({ elapsedMs, questionCount, onInvite }) {
   const flow = useFlow()
+  const [copied, setCopied] = useState(false)
   const fmt = (ms) => {
     const s = Math.floor(ms / 1000)
     return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
@@ -2338,25 +2308,47 @@ function Published({ elapsedMs, questionCount, onInvite }) {
           </nav>
         </CrumbTopbar>
         <div className="flex-1 flex items-center justify-center px-8 py-10">
-          <div className="w-full max-w-md rounded-2xl border border-neutral-200 bg-white p-8 text-center">
+          <div className="w-full max-w-lg rounded-2xl border border-neutral-200 bg-white p-8 text-center">
             <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
               <Icon path={icons.check} className="w-7 h-7" stroke={2.5} />
             </div>
             <h1 className="mt-5 text-xl font-semibold text-neutral-900">Exam published</h1>
             <p className="mt-1 text-sm text-neutral-500">
-              {EXAM_NAME} is live. Students can now join.
+              {EXAM_NAME} is live. Share the link below — students join by
+              clicking it, no account needed.
             </p>
 
             <div className="mt-5 rounded-xl bg-neutral-50 border border-neutral-200 px-4 py-3 text-sm text-neutral-600">
               Published in <span className="font-semibold text-neutral-900">{fmt(elapsedMs)}</span>
-              {' · '}{questionCount} questions · 5 steps
+              {' · '}{questionCount} question{questionCount === 1 ? '' : 's'} · 3 steps
+            </div>
+
+            {/* Share link — publishing and sharing are one moment */}
+            <div className="mt-5 rounded-xl border border-neutral-900/10 bg-white p-4 text-left shadow-sm ring-1 ring-neutral-900/5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
+                Share link
+              </p>
+              <div className="mt-2.5 flex items-center gap-2.5">
+                <div className="flex-1 flex items-center rounded-lg border border-neutral-200 bg-neutral-50 px-3.5 py-2.5 text-sm text-neutral-700 truncate">
+                  {JOIN_LINK}
+                </div>
+                <button
+                  onClick={() => {
+                    setCopied(true)
+                    setTimeout(() => setCopied(false), 1500)
+                  }}
+                  className="shrink-0 rounded-lg bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-black transition"
+                >
+                  {copied ? 'Copied!' : 'Copy link'}
+                </button>
+              </div>
             </div>
 
             <button
               onClick={onInvite}
-              className="mt-6 w-full rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white hover:bg-black transition"
+              className="mt-6 w-full rounded-lg border border-neutral-300 bg-white px-5 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50 transition"
             >
-              Invite students
+              Manage invitations
             </button>
             <button
               onClick={() => flow?.go('exams')}
@@ -2381,11 +2373,7 @@ const PENDING_INVITES = [
 function InviteStudents() {
   const flow = useFlow()
   const [copied, setCopied] = useState(false)
-  const link = 'proctex.app/join/ss3-chem-7k9x2'
-
-  React.useEffect(() => {
-    flow?.setStep('Step 5 of 5: Invite students')
-  }, [])
+  const link = JOIN_LINK
 
   return (
     <div className="min-h-screen flex">
@@ -2542,7 +2530,7 @@ export default function App() {
   const [running, setRunning] = useState(false)
   const [elapsedMs, setElapsedMs] = useState(0)
   const [frozen, setFrozen] = useState(false)
-  const [step, setStep] = useState('Step 1 of 5: Exam setup')
+  const [step, setStep] = useState('Step 1 of 3: Exam details')
   const [questionCount, setQuestionCount] = useState(0)
 
   React.useEffect(() => {
